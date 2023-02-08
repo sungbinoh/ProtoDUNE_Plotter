@@ -136,7 +136,8 @@ void Draw_Fitted_vs_BB(TString filename, TString method, TString particle, TStri
   latex_Nhits.SetTextSize(0.06);
   latex_method.SetTextSize(0.06);
   latex_ProtoDUNE.DrawLatex(0.16, 0.96, "#font[62]{ProtoDUNE-SP} #font[42]{#it{#scale[0.8]{Preliminary}}}");
-  latex_particle.DrawLatex(0.90, 0.96, "True " + partcle_latex + " (reconstructed as #pi^{+})");
+  if(filename.Contains("MC")) latex_particle.DrawLatex(0.90, 0.96, "True " + partcle_latex + " (reconstructed as #pi^{+})");
+  else latex_particle.DrawLatex(0.90, 0.96, "Reconstructed #pi^{+} in Data");
   latex_Nhits.DrawLatex(0.18, 0.80, Nhits_latex);
   latex_method.DrawLatex(0.18, 0.87, method);
   TString output_plot_dir = getenv("PLOTTER_WORKING_DIR");
@@ -193,7 +194,8 @@ void Draw_Denom_Distributions(TString filename, TString particle, TString partcl
   latex_particle.SetTextSize(0.03);
   latex_Nhits.SetTextSize(0.08);
   latex_ProtoDUNE.DrawLatex(0.16, 0.96, "#font[62]{ProtoDUNE-SP} #font[42]{#it{#scale[0.8]{Preliminary}}}");
-  latex_particle.DrawLatex(0.95, 0.96, "True " + partcle_latex + " (reconstructed as #pi^{+})");
+  if(filename.Contains("MC")) latex_particle.DrawLatex(0.95, 0.96, "True " + partcle_latex + " (reconstructed as #pi^{+})");
+  else latex_particle.DrawLatex(0.95, 0.96, "Reconstructed #pi^{+} in Data");
   latex_Nhits.DrawLatex(0.90, 0.80, Nhits_latex);
 
   TString output_plot_dir = getenv("PLOTTER_WORKING_DIR");
@@ -208,16 +210,23 @@ void Run_for_filename(TString filename, TString suffix){
   
   TString Nhits_arr[] = {"Nhits0to30", "Nhits30to60", "Nhits60to90", "Nhits90to120", "Nhits120to150", "Nhits150to180", "Nhits180to210"};
   TString Nhits_latex_arr[] = {"N_{hits} : 15 - 30", "N_{hits} : 30 - 60", "N_{hits} : 60 - 90", "N_{hits} : 90 - 120", "N_{hits} : 120 - 150", "N_{hits} : 150 - 180", "N_{hits} : 180 - 210"};
-  TString particle_arr[] = {"pion"};
-  TString particle_latex_arr[] = {"#pi^{+}"};
+  TString particle_arr[] = {"pion", "proton", "muon"};
+  TString particle_latex_arr[] = {"#pi^{+}", "p^{+}", "#mu^{#pm}"};
 
   int N_Nhits_arr = 7;
-  int N_particle_arr = 1;
+  int N_particle_arr = 3;
   for(int i = 0; i < N_Nhits_arr; i++){
-    for(int j = 0; j < N_particle_arr; j++){
-      Draw_Denom_Distributions(filename, particle_arr[j], particle_latex_arr[j], Nhits_arr[i], Nhits_latex_arr[i], 0., 800., 20.);
-      Draw_Fitted_vs_BB(filename, "Gaussian", particle_arr[j], particle_latex_arr[j], Nhits_arr[i], Nhits_latex_arr[i], 0., 800., 0., 800.);
-      Draw_Fitted_vs_BB(filename, "Likelihood", particle_arr[j], particle_latex_arr[j], Nhits_arr[i], Nhits_latex_arr[i], 0., 800., 0., 800.);
+    if(filename.Contains("MC")){
+      for(int j = 0; j < N_particle_arr; j++){
+	Draw_Denom_Distributions(filename, particle_arr[j], particle_latex_arr[j], Nhits_arr[i], Nhits_latex_arr[i], 0., 800., 20.);
+	Draw_Fitted_vs_BB(filename, "Gaussian", particle_arr[j], particle_latex_arr[j], Nhits_arr[i], Nhits_latex_arr[i], 0., 800., 0., 800.);
+	Draw_Fitted_vs_BB(filename, "Likelihood", particle_arr[j], particle_latex_arr[j], Nhits_arr[i], Nhits_latex_arr[i], 0., 800., 0., 800.);
+      }
+    }
+    else{
+      Draw_Denom_Distributions(filename, "Data", "Data", Nhits_arr[i], Nhits_latex_arr[i], 0., 800., 20.);
+      Draw_Fitted_vs_BB(filename, "Gaussian", "Data", "Data", Nhits_arr[i], Nhits_latex_arr[i], 0., 800., 0., 800.);
+      Draw_Fitted_vs_BB(filename, "Likelihood", "Data", "Data", Nhits_arr[i], Nhits_latex_arr[i], 0., 800., 0., 800.);
     }
   }
 
@@ -228,4 +237,5 @@ void Draw_paper_plots(){
   setTDRStyle();
   Draw_True_vs_BB("PionKEScale_1.0_MC_1GeV_test.root", 0., 800., 0., 800.);
   Run_for_filename("PionKEScale_1.0_MC_1GeV_test.root", "");
+  Run_for_filename("PionKEScale_1.0_Data_1GeV_test.root", "");
 }

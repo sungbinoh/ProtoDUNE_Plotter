@@ -5,6 +5,10 @@ map<TString, vector<double>> four_params_map;
 map<TString, vector<double>> three_params_map;
 map<TString, vector<double>> four_params_err_map;
 map<TString, vector<double>> three_params_err_map;
+map<TString, vector<double>> HL_points_x;
+map<TString, vector<double>> HL_points_y;
+map<TString, vector<double>> HL_points_x_err;
+map<TString, vector<double>> HL_points_y_err;
 
 Double_t Gaus_AbsX(Double_t *x, Double_t *par){
   Double_t Constant = par[0];
@@ -100,6 +104,10 @@ void Produce_1D_Hists(TString filename, int segment_size, double rebin_x, double
   daughter_pion_yz_hist -> Rebin2D(rebin_x, rebin_y);
   daughter_pion_3D_hist -> Rebin2D(rebin_x, rebin_y);
 
+  TH2D* beam_and_daughter_pion_xz_hist = (TH2D*)beam_pion_xz_hist -> Clone();
+  TH2D* beam_and_daughter_pion_yz_hist = (TH2D*)beam_pion_xz_hist -> Clone();
+  beam_and_daughter_pion_xz_hist -> Add(daughter_pion_xz_hist);
+  beam_and_daughter_pion_yz_hist -> Add(daughter_pion_yz_hist);
 
   int Nbins_x = beam_pion_xz_hist -> GetNbinsX();
   int Nbins_y = beam_pion_xz_hist -> GetNbinsY();
@@ -114,6 +122,8 @@ void Produce_1D_Hists(TString filename, int segment_size, double rebin_x, double
   vector<TH1D*> daughter_pion_xz_hist_1D_vec;
   vector<TH1D*> daughter_pion_yz_hist_1D_vec;
   vector<TH1D*> daughter_pion_3D_hist_1D_vec;
+  vector<TH1D*> beam_and_daughter_pion_xz_hist_1D_vec;
+  vector<TH1D*> beam_and_daughter_pion_yz_hist_1D_vec;
   for(int i = 1; i < Nbins_x + 1; i++){
     TString i_str = Form("%d", i);
     TH1D * this_beam_pion_xz_hist_1D = new TH1D("beam_pion_xz_hist_1D_" + i_str, "beam_pion_xz_hist_1D_" + i_str, Nbins_y, -0.5, 0.5);
@@ -125,7 +135,8 @@ void Produce_1D_Hists(TString filename, int segment_size, double rebin_x, double
     TH1D * this_daughter_pion_xz_hist_1D = new TH1D("daughter_pion_xz_hist_1D_" + i_str, "daughter_pion_xz_hist_1D_" + i_str, Nbins_y, -0.5, 0.5);
     TH1D * this_daughter_pion_yz_hist_1D = new TH1D("daughter_pion_yz_hist_1D_" + i_str, "daughter_pion_yz_hist_1D_" + i_str, Nbins_y, -0.5, 0.5);
     TH1D * this_daughter_pion_3D_hist_1D = new TH1D("daughter_pion_3D_hist_1D_" + i_str, "daughter_pion_3D_hist_1D_" + i_str, Nbins_y, -0.5, 0.5);
-
+    TH1D * this_beam_and_daughter_pion_xz_hist_1D = new TH1D("beam_and_daughter_pion_xz_hist_1D_" + i_str, "beam_and_daughter_pion_xz_hist_1D_" + i_str, Nbins_y, -0.5, 0.5);
+    TH1D * this_beam_and_daughter_pion_yz_hist_1D = new TH1D("beam_and_daughter_pion_yz_hist_1D_" + i_str, "beam_and_daughter_pion_yz_hist_1D_" + i_str, Nbins_y, -0.5, 0.5);
     for(int j = 1; j < Nbins_y + 1; j++){
       double this_beam_pion_xz_content = beam_pion_xz_hist -> GetBinContent(i, j);
       double this_beam_pion_yz_content = beam_pion_yz_hist -> GetBinContent(i, j);
@@ -146,6 +157,11 @@ void Produce_1D_Hists(TString filename, int segment_size, double rebin_x, double
       this_daughter_pion_xz_hist_1D -> SetBinContent(j, this_daughter_this_pion_xz_content);
       this_daughter_pion_yz_hist_1D -> SetBinContent(j, this_daughter_this_pion_yz_content);
       this_daughter_pion_3D_hist_1D -> SetBinContent(j, this_daughter_this_pion_3D_content);
+
+      double this_beam_and_daughter_pion_xz_content = beam_and_daughter_pion_xz_hist -> GetBinContent(i, j);
+      double this_beam_and_daughter_pion_yz_content = beam_and_daughter_pion_yz_hist -> GetBinContent(i, j);
+      this_beam_and_daughter_pion_xz_hist_1D -> SetBinContent(j, this_beam_and_daughter_pion_xz_content);
+      this_beam_and_daughter_pion_yz_hist_1D -> SetBinContent(j, this_beam_and_daughter_pion_yz_content);
     }
 
     beam_pion_xz_hist_1D_vec.push_back(this_beam_pion_xz_hist_1D);
@@ -157,21 +173,24 @@ void Produce_1D_Hists(TString filename, int segment_size, double rebin_x, double
     daughter_pion_xz_hist_1D_vec.push_back(this_daughter_pion_xz_hist_1D);
     daughter_pion_yz_hist_1D_vec.push_back(this_daughter_pion_yz_hist_1D);
     daughter_pion_3D_hist_1D_vec.push_back(this_daughter_pion_3D_hist_1D);
+    beam_and_daughter_pion_xz_hist_1D_vec.push_back(this_beam_and_daughter_pion_xz_hist_1D);
+    beam_and_daughter_pion_yz_hist_1D_vec.push_back(this_beam_and_daughter_pion_yz_hist_1D);
   }
 
   TString output_file_dir = input_file_dir + "/output/root/MCS/MCS_" + segment_size_str + ".root";
   TFile *f_output = new TFile(output_file_dir,"RECREATE");
 
-  Perform_Fittings(beam_pion_xz_hist_1D_vec, beam_pion_xz_hist, 200., segment_size, "MCS_" + segment_size_str + "_beam_pion_xz", "#theta_{xz}");
-  Perform_Fittings(beam_pion_yz_hist_1D_vec, beam_pion_yz_hist, 200., segment_size, "MCS_" + segment_size_str + "_beam_pion_yz", "#theta_{yz}");
-  Perform_Fittings(beam_pion_3D_hist_1D_vec, beam_pion_3D_hist, 200., segment_size, "MCS_" + segment_size_str + "_beam_pion_3D", "#theta_{3D}");
+  Perform_Fittings(beam_pion_xz_hist_1D_vec, beam_pion_xz_hist, 900., segment_size, "MCS_" + segment_size_str + "_beam_pion_xz", "#theta_{xz}");
+  Perform_Fittings(beam_pion_yz_hist_1D_vec, beam_pion_yz_hist, 900., segment_size, "MCS_" + segment_size_str + "_beam_pion_yz", "#theta_{yz}");
+  Perform_Fittings(beam_pion_3D_hist_1D_vec, beam_pion_3D_hist, 1200., segment_size, "MCS_" + segment_size_str + "_beam_pion_3D", "#theta_{3D}");
   Perform_Fittings(beam_muon_xz_hist_1D_vec, beam_muon_xz_hist, 200., segment_size, "MCS_" + segment_size_str + "_beam_muon_xz", "#theta_{xz}");
   Perform_Fittings(beam_muon_yz_hist_1D_vec, beam_muon_yz_hist, 200., segment_size, "MCS_" + segment_size_str + "_beam_muon_yz", "#theta_{yz}");
-  Perform_Fittings(beam_muon_3D_hist_1D_vec, beam_muon_3D_hist, 200., segment_size, "MCS_" + segment_size_str + "_beam_muon_3D", "#theta_{3D}");
-  Perform_Fittings(daughter_pion_xz_hist_1D_vec, daughter_pion_xz_hist, 200., segment_size, "MCS_" + segment_size_str + "_daughter_pion_xz", "#theta_{xz}");
-  Perform_Fittings(daughter_pion_yz_hist_1D_vec, daughter_pion_yz_hist, 200., segment_size, "MCS_" + segment_size_str + "_daughter_pion_yz", "#theta_{yz}");
-  Perform_Fittings(daughter_pion_3D_hist_1D_vec, daughter_pion_3D_hist, 200., segment_size, "MCS_" + segment_size_str + "_daughter_pion_3D", "#theta_{3D}");
-
+  Perform_Fittings(beam_muon_3D_hist_1D_vec, beam_muon_3D_hist, 1200., segment_size, "MCS_" + segment_size_str + "_beam_muon_3D", "#theta_{3D}");
+  Perform_Fittings(daughter_pion_xz_hist_1D_vec, daughter_pion_xz_hist, 900., segment_size, "MCS_" + segment_size_str + "_daughter_pion_xz", "#theta_{xz}");
+  Perform_Fittings(daughter_pion_yz_hist_1D_vec, daughter_pion_yz_hist, 900., segment_size, "MCS_" + segment_size_str + "_daughter_pion_yz", "#theta_{yz}");
+  Perform_Fittings(daughter_pion_3D_hist_1D_vec, daughter_pion_3D_hist, 1200., segment_size, "MCS_" + segment_size_str + "_daughter_pion_3D", "#theta_{3D}");
+  Perform_Fittings(beam_and_daughter_pion_xz_hist_1D_vec, beam_and_daughter_pion_xz_hist, 900., segment_size, "MCS_" + segment_size_str + "_beam_and_daughter_pion_xz", "#theta_{xz}");
+  Perform_Fittings(beam_and_daughter_pion_yz_hist_1D_vec, beam_and_daughter_pion_yz_hist, 900.,segment_size, "MCS_" + segment_size_str + "_beam_and_daughter_pion_yz", "#theta_{yz}");
   /*
   for(unsigned int i = 0; i < pion_xz_hist_1D_vec.size(); i++){ 
     cout << Form("%d Integrals %f, %f, %f, %f", i, pion_xz_hist_1D_vec.at(i) -> Integral(), pion_yz_hist_1D_vec.at(i) -> Integral(), muon_xz_hist_1D_vec.at(i) -> Integral(), muon_yz_hist_1D_vec.at(i) -> Integral()) << endl;
@@ -191,11 +210,25 @@ void Perform_Fittings(const vector<TH1D*> & hist_1D_vec, const TH2D* this_2D, do
   for(unsigned int i = 0; i < hist_1D_vec.size(); i++){
     double this_P = this_2D -> GetXaxis() -> GetBinCenter(i + 1);
     double this_P_err = 0.5 * this_2D -> GetXaxis() -> GetBinWidth(i + 1);
-    double fit_x_min = -0.1;
-    double fit_x_max = 0.1;
+    double fit_x_min = -0.2;
+    double fit_x_max = 0.2;
     TString momentum_range_str = Form("P_{true} : %.0f - %.0f GeV/c", this_P - this_P_err, this_P + this_P_err);
     if(hist_1D_vec.at(i) -> Integral() > integral_cut){
+      double this_sigma = hist_1D_vec.at(i) -> GetRMS();
+      double this_integral = hist_1D_vec.at(i) -> Integral();
+      //fit_x_min = 0. - this_sigma;
+      //fit_x_max = 0. + this_sigma;
       TF1 *this_gaus = new TF1("fit_gaus", "gaus", fit_x_min, fit_x_max);
+      TF1 *this_double_gaus = new TF1("double_gaus", "gaus(0) + gaus(3)", fit_x_min, fit_x_max);
+      this_double_gaus -> SetParNames("Constant 1", "Mean 1", "Sigma 1", "Constant 2", "Mean 2", "Sigma 2");
+      this_double_gaus -> SetParameters(this_integral * 0.5, 0., this_sigma, this_integral * 0.5, 0., this_sigma * 10.);
+      this_double_gaus -> SetParLimits(0, this_integral * 0.01, this_integral * 10.);
+      this_double_gaus -> SetParLimits(3, this_integral * 0.01, this_integral * 10.);
+      this_double_gaus -> SetParLimits(1, -0.01, 0.01);
+      this_double_gaus -> SetParLimits(4, -0.01, 0.01);
+      this_double_gaus -> SetParLimits(2, this_sigma * 0.01, this_sigma * 100.);
+      this_double_gaus -> SetParLimits(5, this_sigma * 0.5, this_sigma * 100.);
+
       TF1 *this_Gaus_AbsX = new TF1("fit_Gaus_AbsX", Gaus_AbsX, 0., fit_x_max, 3);
       if(name.Contains("3D")){
 	double this_maximum = hist_1D_vec.at(i) -> GetMaximum();
@@ -203,29 +236,100 @@ void Perform_Fittings(const vector<TH1D*> & hist_1D_vec, const TH2D* this_2D, do
 	this_Gaus_AbsX -> SetParLimits(1, 0., 0.1);
 	this_Gaus_AbsX -> SetParLimits(2, 0., 0.2);
 	hist_1D_vec.at(i) -> Fit(this_Gaus_AbsX, "R", "", 0., fit_x_max);
-      } 
-      else hist_1D_vec.at(i) -> Fit(this_gaus, "R", "", fit_x_min, fit_x_max);
+      }
+      else if(name.Contains("pion")){
+	hist_1D_vec.at(i) -> Fit(this_double_gaus, "R", "", fit_x_min, fit_x_max);
+      }
+      else{
+	hist_1D_vec.at(i) -> Fit(this_gaus, "R", "", fit_x_min, fit_x_max);
+      }
+      double this_const = -9999.;
+      double this_const_err = -9999.;
       double this_mu = -9999.;
       double this_mu_err = -9999.;
       double this_std = -9999.;
       double this_std_err = -9999.;
       if(name.Contains("3D")){
+	this_const = this_Gaus_AbsX -> GetParameter(0);
+	this_const_err = this_Gaus_AbsX -> GetParError(0);
 	this_mu = this_Gaus_AbsX -> GetParameter(1);
 	this_mu_err = this_Gaus_AbsX -> GetParError(1);
 	this_std = this_Gaus_AbsX -> GetParameter(2);
 	this_std_err = this_Gaus_AbsX -> GetParError(2);
       }
+      else if(name.Contains("pion")){
+	double sigma_1 = this_double_gaus -> GetParameter(2);
+	double sigma_2 = this_double_gaus -> GetParameter(5);
+	if(sigma_1 < sigma_2){
+	  this_const = this_double_gaus -> GetParameter(0);
+	  this_const_err = this_double_gaus -> GetParError(0);
+	  this_mu = this_double_gaus -> GetParameter(1);
+	  this_mu_err = this_double_gaus -> GetParError(1);
+	  this_std = this_double_gaus -> GetParameter(2);
+	  this_std_err = this_double_gaus -> GetParError(2);
+	}
+	else{
+	  this_const = this_double_gaus -> GetParameter(3);
+          this_const_err = this_double_gaus -> GetParError(3);
+	  this_mu = this_double_gaus ->GetParameter(4);
+          this_mu_err = this_double_gaus -> GetParError(4);
+          this_std = this_double_gaus -> GetParameter(5);
+          this_std_err = this_double_gaus -> GetParError(5);
+	}
+	double par[6];
+	this_double_gaus -> GetParameters(&par[0]);
+	TF1 *gaus1 = new TF1("gaus1", "gaus", fit_x_min, fit_x_max);
+	TF1 *gaus2 = new TF1("gaus2", "gaus", fit_x_min, fit_x_max);
+	gaus1 -> SetParameters(par[0], par[1], par[2]);
+	gaus1 -> SetLineColor(kBlue);
+	gaus1 -> SetLineStyle(7);
+	gaus1 -> Draw("lsame");
+	gaus2 -> SetParameters(par[3], par[4], par[5]);
+	gaus2 -> SetLineColor(kCyan);
+	gaus2 -> SetLineStyle(7);
+	gaus2 -> Draw("lsame");
+      }
       else{
+	this_const = this_gaus -> GetParameter(0);
+	this_const_err = this_gaus -> GetParError(0);
 	this_mu = this_gaus -> GetParameter(1);
 	this_mu_err = this_gaus -> GetParError(1);
 	this_std = this_gaus -> GetParameter(2);
 	this_std_err = this_gaus -> GetParError(2);
       }
       
-      P_vec.push_back(this_P);
-      P_err_vec.push_back(this_P_err);
-      sigma_vec.push_back(this_std);
-      sigma_err_vec.push_back(this_std_err);
+      if(this_const_err / this_const < 0.5 && this_std > 0.002){
+	if(!name.Contains("3D") && name.Contains("pion")){
+	  double this_chi2 = this_double_gaus -> GetChisquare() / this_double_gaus -> GetNDF();
+	  int hist_max_bin = hist_1D_vec.at(i) -> GetMaximumBin();
+	  int N_siginificant_poins = 0;
+	  int N_bigger_points = 0;
+	  for(int j = -3; j < 4; j++){
+	    double hist_y = hist_1D_vec.at(i) -> GetBinContent(hist_max_bin + j);
+	    double hist_y_err = hist_1D_vec.at(i) -> GetBinError(hist_max_bin + j);
+	    double hist_x = hist_1D_vec.at(i) -> GetBinCenter(hist_max_bin + j);
+	    double fit_function_y = this_double_gaus -> Eval(hist_x);
+	    double this_significance = fabs(hist_y - fit_function_y) / hist_y_err;
+	    if(this_significance > 3.) N_siginificant_poins++;
+	    if(hist_y > fit_function_y) N_bigger_points++;
+	  }
+	  double const_1 = this_double_gaus -> GetParameter(0);
+	  double const_2 = this_double_gaus -> GetParameter(3);
+	  double ratio = min(const_1, const_2) / max(const_1, const_2);
+	  if(this_chi2 < 8. && N_siginificant_poins < 2 && ratio < 0.6){
+	    P_vec.push_back(this_P);
+	    P_err_vec.push_back(this_P_err);
+	    sigma_vec.push_back(this_std);
+	    sigma_err_vec.push_back(this_std_err);
+	  }
+	}
+	else{
+	  P_vec.push_back(this_P);
+	  P_err_vec.push_back(this_P_err);
+	  sigma_vec.push_back(this_std);
+	  sigma_err_vec.push_back(this_std_err);
+	}
+      }
       hist_1D_vec.at(i) -> Write();
       TCanvas *c = new TCanvas("", "", 800, 600);
       canvas_margin(c);
@@ -240,6 +344,44 @@ void Perform_Fittings(const vector<TH1D*> & hist_1D_vec, const TH2D* this_2D, do
       template_h -> GetYaxis() -> SetLabelSize(0.035);
       template_h -> Draw();
       hist_1D_vec.at(i) -> Draw("epsame");
+
+      if(!name.Contains("3D") && name.Contains("pion")){
+	double par[6], par_err[6];
+        this_double_gaus -> GetParameters(&par[0]);
+	par_err[0] = this_double_gaus -> GetParError(0);
+	par_err[1] = this_double_gaus -> GetParError(1);
+	par_err[2] = this_double_gaus -> GetParError(2);
+	par_err[3] = this_double_gaus -> GetParError(3);
+	par_err[4] = this_double_gaus -> GetParError(4);
+	par_err[5] = this_double_gaus -> GetParError(5);
+
+	//this_double_gaus -> GetParamErrors(&par_err[0]);
+	TF1 *gaus1 = new TF1("gaus1", "gaus", fit_x_min, fit_x_max);
+        TF1 *gaus2 = new TF1("gaus2", "gaus", fit_x_min, fit_x_max);
+        gaus1 -> SetParameters(par[0], par[1], par[2]);
+        gaus1 -> SetLineColor(kBlue);
+        gaus1 -> SetLineStyle(7);
+        gaus1 -> Draw("lsame");
+        gaus2 -> SetParameters(par[3], par[4], par[5]);
+        gaus2 -> SetLineColor(kCyan);
+        gaus2 -> SetLineStyle(7);
+        gaus2 -> Draw("lsame");
+	this_double_gaus -> Draw("lsame");
+	TLegend *l = new TLegend(0.6, 0.5, 0.92, 0.92); 
+	l -> AddEntry(gaus1, Form("C : %.2e #pm %.2e", par[0], par_err[0]), "l");
+	l -> AddEntry(gaus1, Form("#mu : %.2e #pm %.2e", par[1], par_err[1]), "");
+	l -> AddEntry(gaus1, Form("#sigma : %.2e #pm %.2e", par[2], par_err[2]), "");
+	l -> AddEntry(gaus2, Form("C : %.2e #pm %.2e", par[3], par_err[3]), "l");
+	l -> AddEntry(gaus2, Form("#mu : %.2e #pm %.2e", par[4], par_err[4]), "");
+        l -> AddEntry(gaus2, Form("#sigma : %.2e #pm %.2e", par[5], par_err[5]), "");
+	l -> Draw("same");
+
+	double this_chi2 = this_double_gaus -> GetChisquare() / this_double_gaus -> GetNDF();
+	TLatex latex_chi2;
+	latex_chi2.SetNDC();
+	latex_chi2.SetTextSize(0.04);
+	latex_chi2.DrawLatex(0.20, 0.68, Form("#chi^{2}/NDF : %.2e", this_chi2));
+      }
 
       TString i_str = Form("%d", i);
       if(i < 10) i_str = "00" + i_str;
@@ -266,6 +408,11 @@ void Perform_Fittings(const vector<TH1D*> & hist_1D_vec, const TH2D* this_2D, do
       c -> Close();
     }
   }
+
+  HL_points_x[name] = P_vec;
+  HL_points_x_err[name] = P_err_vec;
+  HL_points_y[name] = sigma_vec;
+  HL_points_y_err[name] = sigma_err_vec;
   
   TCanvas *c = new TCanvas("", "", 800, 600);
   canvas_margin(c);
@@ -377,11 +524,11 @@ void Compare_Fitted_Parameters(int i_par, TString par_name, TString titleX){
 
   double x_min = 999999.; double x_max = -999999.;
   vector<double> four_x_vec, four_x_err_vec, three_x_vec, three_x_err_vec, four_y_vec, three_y_vec, y_err_vec;
-  TString segments[4] = {"14cm", "10cm", "5cm", "4cm"};
-  TString thetas[4] = {"pion_xz", "pion_yz", "muon_xz", "muon_yz"};
+  TString segments[5] = {"14cm", "10cm", "8cm", "5cm", "4cm"};
+  TString thetas[4] = {"beam_and_daughter_pion_xz", "beam_and_daughter_pion_yz", "beam_muon_xz", "beam_muon_yz"};
   TString thetas_legend[4] = {"#theta_{xz}(#pi^{#pm})", "#theta_{yz}(#pi^{#pm})", "#theta_{xz}(#mu^{#pm})", "#theta_{yz}(#mu^{#pm})"};
   vector<TString> y_labels;
-  for(int i_seg = 0; i_seg < 4; i_seg++){
+  for(int i_seg = 0; i_seg < 5; i_seg++){
     for(int i_theta = 0; i_theta < 4; i_theta++){
       TString this_name = "MCS_" + segments[i_seg] + "_" + thetas[i_theta];
       double this_four_x = four_params_map[this_name].at(i_par);
@@ -413,7 +560,7 @@ void Compare_Fitted_Parameters(int i_par, TString par_name, TString titleX){
   double template_x_min = x_min - (x_max - x_min) * 0.5;
   double template_x_max = x_max + (x_max - x_min) * 0.2;
   cout << "[Compare_Fitted_Parameters] template_x_min : " << template_x_min << ", template_x_max : " << template_x_max << endl;
-  double y_max = 20.;
+  double y_max = 24.;
   TH1D * template_h = new TH1D("", "", 1., template_x_min, template_x_max);
   gStyle->SetOptTitle(0);
   gStyle->SetLineWidth(2);
@@ -427,10 +574,10 @@ void Compare_Fitted_Parameters(int i_par, TString par_name, TString titleX){
   template_h -> GetYaxis() -> SetRangeUser(0., y_max);
   template_h -> Draw();
 
-  TLegend *l = new TLegend(0.07, 0.85, 0.93, 0.93);
+  TLegend *l = new TLegend(0.07, 0.89, 0.93, 0.93);
   l -> SetTextSize(0.04);
   //l -> SetFillColor(kYellow);
-  TLine *line_siva = new TLine(siva_param[i_par], 0., siva_param[i_par], 17.5);
+  TLine *line_siva = new TLine(siva_param[i_par], 0., siva_param[i_par], 21.5);
   if(siva_param[i_par] > -9998.){
     //line_siva -> SetLineStyle(7);
     line_siva -> SetLineColor(kGreen);
@@ -440,12 +587,12 @@ void Compare_Fitted_Parameters(int i_par, TString par_name, TString titleX){
   }
   else l -> SetNColumns(2);
 
-  TGraphErrors *gr_four = new TGraphErrors(16, &four_x_vec[0], &four_y_vec[0], &four_x_err_vec[0], &y_err_vec[0]);
+  TGraphErrors *gr_four = new TGraphErrors(20, &four_x_vec[0], &four_y_vec[0], &four_x_err_vec[0], &y_err_vec[0]);
   gr_four -> SetLineColor(kRed);
   gr_four -> SetMarkerColor(kRed);
   gr_four -> Draw("epsame");
   
-  TGraphErrors *gr_three = new TGraphErrors(16, &three_x_vec[0], &three_y_vec[0], &three_x_err_vec[0], &y_err_vec[0]);
+  TGraphErrors *gr_three = new TGraphErrors(20, &three_x_vec[0], &three_y_vec[0], &three_x_err_vec[0], &y_err_vec[0]);
   gr_three -> SetLineColor(kBlue);
   gr_three -> SetMarkerColor(kBlue);
   gr_three -> Draw("epsame");
@@ -453,7 +600,7 @@ void Compare_Fitted_Parameters(int i_par, TString par_name, TString titleX){
 
   TLatex latex_label;
   latex_label.SetTextSize(0.04);
-  for(int i_label = 0; i_label < 16; i_label++){
+  for(int i_label = 0; i_label < 20; i_label++){
     latex_label.DrawLatex(template_x_min + (template_x_max - template_x_min) * 0.05, four_y_vec.at(i_label) + 0.1, y_labels.at(i_label));
   }
 
@@ -472,20 +619,21 @@ void Compare_Fitted_Parameters(int i_par, TString par_name, TString titleX){
 void Fitting_HL(){
   setTDRStyle();
 
-  /*
-  Produce_1D_Hists("PionKEScale_MC_MCS.root", 14, 100, 2);
-  Produce_1D_Hists("PionKEScale_MC_MCS.root", 10, 100, 2);
-  Produce_1D_Hists("PionKEScale_MC_MCS.root", 5, 100, 2);
-  Produce_1D_Hists("PionKEScale_MC_MCS.root", 4, 100, 2);
-  */
-  Produce_1D_Hists("PionKEScale_0.5_MC_0.5GeV_MCS.root", 4, 100, 2);
+
+  Produce_1D_Hists("PionKEScale_MC_MCS.root", 14, 100, 5);
+  Produce_1D_Hists("PionKEScale_MC_MCS.root", 10, 100, 5);
+  Produce_1D_Hists("PionKEScale_MC_MCS.root", 8, 100, 5);
+  Produce_1D_Hists("PionKEScale_MC_MCS.root", 5, 100, 5);
+  Produce_1D_Hists("PionKEScale_MC_MCS.root", 4, 100, 5);
+
+  //Produce_1D_Hists("PionKEScale_0.5_MC_0.5GeV_MCS.root", 4, 100, 2);
 
 
 
-  /*
+
   Compare_Fitted_Parameters(0, "kappa_a", "#kappa_{a} [MeV^{3}]");
   Compare_Fitted_Parameters(1, "kappa_c", "#kappa_{c} [MeV]");
   Compare_Fitted_Parameters(2, "sigma_res", "#sigma_{res} [rad.]");
   Compare_Fitted_Parameters(3, "epsilon", "#varepsilon");
-  */
+
 }
