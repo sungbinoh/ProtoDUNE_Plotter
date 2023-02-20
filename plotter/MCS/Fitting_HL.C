@@ -10,6 +10,16 @@ map<TString, vector<double>> HL_points_y;
 map<TString, vector<double>> HL_points_x_err;
 map<TString, vector<double>> HL_points_y_err;
 
+double Get_Ratio_Err(double denom, double numer, double denom_err, double numer_err, double corr){
+
+  double ratio = numer / denom;
+  double denom_term = denom_err / denom;
+  double numer_term = numer_err / numer;
+  double root_term = pow(numer_term, 2.) + pow(denom_term, 2.) - 2. * corr * denom_term * numer_term;
+  double out = ratio * sqrt(root_term);
+  return out;
+}
+
 Double_t Gaus_AbsX(Double_t *x, Double_t *par){
   Double_t Constant = par[0];
   Double_t Mean = par[1];
@@ -20,6 +30,26 @@ Double_t Gaus_AbsX(Double_t *x, Double_t *par){
   return func;
 }
 
+Double_t Private_Double_Gaus(Double_t *x, Double_t *par){
+
+  double ratio_p0 = 0.0616;
+  double ratio_p1 = 0.217;
+  double ratio_p2 = 0.00421;
+  double ratio_p3 = 252.;
+
+  Double_t this_P = par[0];
+  Double_t core_constant = par[1];
+  Double_t core_mu = 0.;
+  Double_t core_sigma = par[2];
+  Double_t bkg_constant = (ratio_p0 + ratio_p1 * exp(-1. * ratio_p2 * (this_P - ratio_p3))) * core_constant;
+  Double_t bkg_sigma = 2.8 * core_sigma;
+
+  Double_t arg_core = x[0] / core_sigma;
+  Double_t arg_bkg = x[0] / bkg_sigma;
+
+  Double_t func = core_constant * TMath::Exp(-0.5 * arg_core * arg_core) + bkg_constant * TMath::Exp(-0.5 * arg_bkg *arg_bkg);
+  return func;
+}
 
 
 Double_t HL_function(Double_t *x, Double_t *par){
@@ -32,7 +62,7 @@ Double_t HL_function(Double_t *x, Double_t *par){
   Double_t segment_size = par[5];
   
   Double_t kappa = ( (kappa_a / (x[0]*x[0])) + kappa_c );
-  Double_t one_over_pbeta = pow(x[0]*x[0] + mass_muon * mass_muon, 0.5) / (x[0]*x[0]);
+  Double_t one_over_pbeta = pow(x[0]*x[0] + mass * mass, 0.5) / (x[0]*x[0]);
   Double_t root_term = pow(segment_size / 14., 0.5);
 
   Double_t func = kappa * one_over_pbeta * root_term * (1 + epsilon * log(segment_size / 14.));
@@ -206,13 +236,17 @@ void Perform_Fittings(const vector<TH1D*> & hist_1D_vec, const TH2D* this_2D, do
 
   TString output_plot_dir = getenv("PLOTTER_WORKING_DIR");
   output_plot_dir = output_plot_dir + "/output/plot/MCS/Fitting/";
-  vector<double> P_vec, P_err_vec, sigma_vec, sigma_err_vec;
+  vector<double> P_vec, P_err_vec, sigma_vec, sigma_err_vec, tail_sigma_vec, tail_sigma_err_vec;
+  vector<double> sigma_ratio_vec, amp_ratio_vec, sigma_ratio_err_vec, amp_ratio_err_vec; // == For poin tail study
   for(unsigned int i = 0; i < hist_1D_vec.size(); i++){
     double this_P = this_2D -> GetXaxis() -> GetBinCenter(i + 1);
     double this_P_err = 0.5 * this_2D -> GetXaxis() -> GetBinWidth(i + 1);
     double fit_x_min = -0.2;
     double fit_x_max = 0.2;
     TString momentum_range_str = Form("P_{true} : %.0f - %.0f GeV/c", this_P - this_P_err, this_P + this_P_err);
+
+    if(this_P < 300.) hist_1D_vec.at(i) -> Rebin(2);
+
     if(hist_1D_vec.at(i) -> Integral() > integral_cut){
       double this_sigma = hist_1D_vec.at(i) -> GetRMS();
       double this_integral = hist_1D_vec.at(i) -> Integral();
@@ -229,6 +263,8 @@ void Perform_Fittings(const vector<TH1D*> & hist_1D_vec, const TH2D* this_2D, do
       this_double_gaus -> SetParLimits(2, this_sigma * 0.01, this_sigma * 100.);
       this_double_gaus -> SetParLimits(5, this_sigma * 0.5, this_sigma * 100.);
 
+      double sigma_corr = 0.;
+      double amp_corr = 0.;
       TF1 *this_Gaus_AbsX = new TF1("fit_Gaus_AbsX", Gaus_AbsX, 0., fit_x_max, 3);
       if(name.Contains("3D")){
 	double this_maximum = hist_1D_vec.at(i) -> GetMaximum();
@@ -239,6 +275,18 @@ void Perform_Fittings(const vector<TH1D*> & hist_1D_vec, const TH2D* this_2D, do
       }
       else if(name.Contains("pion")){
 	hist_1D_vec.at(i) -> Fit(this_double_gaus, "R", "", fit_x_min, fit_x_max);
+	TFitResultPtr r = hist_1D_vec.at(i) -> Fit(this_double_gaus,"S");
+	r->Print("V");
+	TMatrixDSym cov = r->GetCorrelationMatrix();
+	//vector<double> cov_elements;
+	double *cov_elements[36];
+	cov_elements[0] = cov.GetMatrixArray();
+	for(int j = 1; j < 36; j++){
+	  cov_elements[j] = cov_elements[0] + j;
+	}
+	amp_corr = *cov_elements[3];
+	sigma_corr = *cov_elements[17];
+	//cout << "amp_corr : " << amp_corr << ", sigma_corr : " << sigma_corr << endl;
       }
       else{
 	hist_1D_vec.at(i) -> Fit(this_gaus, "R", "", fit_x_min, fit_x_max);
@@ -249,6 +297,12 @@ void Perform_Fittings(const vector<TH1D*> & hist_1D_vec, const TH2D* this_2D, do
       double this_mu_err = -9999.;
       double this_std = -9999.;
       double this_std_err = -9999.;
+      double this_tail_std = -9999.;
+      double this_tail_std_err = -9999.;
+      double this_sigma_ratio = -9999.;
+      double this_amp_ratio = -9999.;
+      double this_sigma_ratio_err = -9999.;
+      double this_amp_ratio_err = -9999.;
       if(name.Contains("3D")){
 	this_const = this_Gaus_AbsX -> GetParameter(0);
 	this_const_err = this_Gaus_AbsX -> GetParError(0);
@@ -267,6 +321,12 @@ void Perform_Fittings(const vector<TH1D*> & hist_1D_vec, const TH2D* this_2D, do
 	  this_mu_err = this_double_gaus -> GetParError(1);
 	  this_std = this_double_gaus -> GetParameter(2);
 	  this_std_err = this_double_gaus -> GetParError(2);
+	  this_tail_std = this_double_gaus -> GetParameter(5);
+          this_tail_std_err = this_double_gaus -> GetParError(5);
+	  this_sigma_ratio = sigma_2 / sigma_1;
+	  this_amp_ratio = this_double_gaus -> GetParameter(3) / this_double_gaus -> GetParameter(0);
+	  this_sigma_ratio_err = Get_Ratio_Err(sigma_1, sigma_2, this_double_gaus -> GetParError(2), this_double_gaus -> GetParError(5), sigma_corr);
+	  this_amp_ratio_err = Get_Ratio_Err( this_double_gaus -> GetParameter(0), this_double_gaus -> GetParameter(3), this_double_gaus -> GetParError(0), this_double_gaus -> GetParError(3), amp_corr);
 	}
 	else{
 	  this_const = this_double_gaus -> GetParameter(3);
@@ -275,6 +335,12 @@ void Perform_Fittings(const vector<TH1D*> & hist_1D_vec, const TH2D* this_2D, do
           this_mu_err = this_double_gaus -> GetParError(4);
           this_std = this_double_gaus -> GetParameter(5);
           this_std_err = this_double_gaus -> GetParError(5);
+	  this_tail_std = this_double_gaus -> GetParameter(2);
+          this_tail_std_err = this_double_gaus -> GetParError(2);
+	  this_sigma_ratio = sigma_1 / sigma_2;
+          this_amp_ratio = this_double_gaus -> GetParameter(0) / this_double_gaus -> GetParameter(3);
+	  this_sigma_ratio_err = Get_Ratio_Err(sigma_2, sigma_1, this_double_gaus -> GetParError(5), this_double_gaus -> GetParError(2), sigma_corr);
+          this_amp_ratio_err = Get_Ratio_Err( this_double_gaus -> GetParameter(3), this_double_gaus -> GetParameter(3), this_double_gaus -> GetParError(3), this_double_gaus -> GetParError(0), amp_corr);
 	}
 	double par[6];
 	this_double_gaus -> GetParameters(&par[0]);
@@ -321,6 +387,12 @@ void Perform_Fittings(const vector<TH1D*> & hist_1D_vec, const TH2D* this_2D, do
 	    P_err_vec.push_back(this_P_err);
 	    sigma_vec.push_back(this_std);
 	    sigma_err_vec.push_back(this_std_err);
+	    tail_sigma_vec.push_back(this_tail_std);
+            tail_sigma_err_vec.push_back(this_tail_std_err);
+	    sigma_ratio_vec.push_back(this_sigma_ratio);
+	    amp_ratio_vec.push_back(this_amp_ratio);
+	    sigma_ratio_err_vec.push_back(this_sigma_ratio_err);
+	    amp_ratio_err_vec.push_back(this_amp_ratio_err);
 	  }
 	}
 	else{
@@ -503,8 +575,111 @@ void Perform_Fittings(const vector<TH1D*> & hist_1D_vec, const TH2D* this_2D, do
   latex_sigma.SetTextSize(0.03);
   latex_sigma.DrawLatex(0.32, 0.35, "#sigma = #sqrt{#sigma_{HL}^{2} + #sigma_{res}^{2}}, where #sigma_{HL} = #frac{1}{p#beta} ( #frac{#kappa_{a}}{p^{2}} + #kappa_{c}) #sqrt{#frac{L_{seg.}}{X_{0}}}(1 + #varepsilon ln #frac{L_{seg.}}{X_{0}})");
   c -> SaveAs(output_plot_dir + "/HL/HL_" + name + ".pdf");
-  c -> Close();
+  
+  if(sigma_ratio_vec.size() > 0){
+    /*
+    template_h -> GetYaxis() -> SetTitle("Tail #sigma(" + TitleX + ") [rad.]");
+    template_h -> GetYaxis() -> SetRangeUser(0., 0.3);
+    template_h -> Draw();
 
+    TGraphErrors *tail_sigma_gr = new TGraphErrors(N_points, &P_vec[0], &tail_sigma_vec[0], &P_err_vec[0], &tail_sigma_err_vec[0]);
+    tail-sigma_gr -> Draw("epsame");
+
+    TF1 *tail_HL_four_params = new TF1("tail_HL_four_params", HL_function, 0., 2500., 6);
+    tail_HL_four_params -> SetParameters(0.022, 9.078, 0.001908, 0.038, paritcle_mass, segment_size + 0.);
+    tail_HL_four_params -> SetParLimits(0, 0., 0.3);
+    tail_HL_four_params -> SetParLimits(1, 0., 20.);
+    tail_HL_four_params -> SetParLimits(2, 0.0005, 0.05);
+    tail_HL_four_params -> SetParLimits(3, 0., 1.);
+
+    tail_HL_four_params -> FixParameter(4, paritcle_mass);
+    tail_HL_four_params -> FixParameter(5, segment_size + 0.);
+
+    TF1 *tail_HL_three_params = new TF1("tail_HL_three_params", HL_function, 0., 2500., 6);
+    tail_HL_three_params -> SetParameters(0.022, 9.078, 0.001908, 0.038, paritcle_mass, segment_size + 0.);
+    tail_HL_three_params -> SetParLimits(0, 0., 0.3);
+    tail_HL_three_params -> SetParLimits(1, 0., 20.);
+    tail_HL_three_params -> SetParLimits(2, 0.0005,0.05);
+    tail_HL_three_params -> FixParameter(3, 0.038);
+    tail_HL_three_params -> FixParameter(4, paritcle_mass);
+    tail_HL_three_params -> FixParameter(5, segment_size + 0.);
+
+    HL_four_params -> SetParNames("kappa_a", "kappa_c", "sigma_res", "epsilon");
+    HL_three_params -> SetParNames("kappa_a", "kappa_c", "sigma_res");
+
+    sigma_gr -> Fit(HL_four_params, "R0", "", 0., 2500.);
+    sigma_gr -> Fit(HL_three_params, "R0", "", 0., 2500.);
+    double par_HL_four[6], par_HL_three[6], par_err_HL_four[6], par_err_HL_three[6];
+    HL_four_params -> GetParameters(par_HL_four);
+    HL_three_params -> GetParameters(par_HL_three);
+    for(int i_par = 0; i_par < 6; i_par++){
+      par_err_HL_four[i_par] = HL_four_params -> GetParError(i_par);
+      par_err_HL_three[i_par] = HL_three_params -> GetParError(i_par);
+    }
+    HL_four_params -> SetLineColor(kRed);
+    HL_four_params -> SetLineStyle(7);
+    HL_four_params -> SetLineWidth(3);
+    HL_four_params -> Draw("lsame");
+    HL_three_params -> SetLineColor(kBlue);
+    HL_three_params -> SetLineStyle(4);
+    HL_three_params -> SetLineWidth(2);
+    HL_three_params -> Draw("lsame");
+    */
+
+
+    // == pion tail study, sigma ratio
+    template_h -> GetYaxis() -> SetTitle("#sigma(tail) / #sigma(core)");
+    template_h -> GetYaxis() -> SetTitleSize(0.05);
+    template_h -> GetYaxis() -> SetLabelSize(0.035);
+    template_h -> GetYaxis() -> SetRangeUser(0., 20.);
+    template_h -> Draw();
+    TGraphErrors * sigma_ratio_gr = new TGraphErrors(N_points, &P_vec[0], &sigma_ratio_vec[0], &P_err_vec[0], &sigma_ratio_err_vec[0]);
+    sigma_ratio_gr -> Draw("psame");
+    TF1 *fit_sigma_ratio = ((TF1*)(gROOT->GetFunction("pol0")));
+    fit_sigma_ratio -> SetRange(0., 3000.); // xmin, xmax
+    fit_sigma_ratio -> SetParameter(0, 10.); // [0] = y
+    sigma_ratio_gr -> Fit(fit_sigma_ratio, "R", "", 0., 3000.);
+    double fitted_ratio = fit_sigma_ratio -> GetParameter(0);
+    double fitted_ratio_err = fit_sigma_ratio -> GetParError(0);
+    latex_label.DrawLatex(0.95, 0.97, name);
+    TLatex fitted_ratio_latex;
+    fitted_ratio_latex.SetNDC();
+    fitted_ratio_latex.SetTextSize(0.08);  
+    fitted_ratio_latex.SetTextAlign(23);
+    fitted_ratio_latex.DrawLatex(0.5, 0.7, Form("Constant = %.2f #pm %.2f", fitted_ratio, fitted_ratio_err));
+    latex_label.DrawLatex(0.95, 0.97, name);
+
+    c -> SaveAs(output_plot_dir + "/Pion_tail/Pion_tail_sigma_ratio_" + name + ".pdf");
+  
+    // == pion tail study, amplitude ratio
+    template_h -> GetYaxis() -> SetTitle("Constant(tail) / Constant(core)");
+    template_h -> GetYaxis() -> SetTitleSize(0.05);
+    template_h -> GetYaxis() -> SetLabelSize(0.035);
+    template_h -> GetYaxis() -> SetRangeUser(0., 0.8);
+    template_h -> Draw();
+    TGraphErrors * amp_ratio_gr = new TGraphErrors(N_points, &P_vec[0], &amp_ratio_vec[0], &P_err_vec[0], &amp_ratio_err_vec[0]);
+    amp_ratio_gr -> Draw("psame");
+    cout << "Fit const ratio" << endl;
+    TF1 *fit_amp_ratio = new TF1("fit_amp_ratio", "[0] + [1] * exp(-1. * [2] * (x - [3]))", 0., 3000.);
+    fit_amp_ratio -> SetParameters(0.0616, 0.217, 0.00421, 252.);
+    fit_amp_ratio -> Draw("lsame");
+    //amp_ratio_gr -> Fit(fit_amp_ratio, "R", "", 0., 3000.);
+    double fit_y_zero_x= fit_amp_ratio-> Eval(0.);
+    template_h -> GetYaxis() -> SetRangeUser(0., fit_y_zero_x * 1.2);
+    latex_label.DrawLatex(0.95, 0.97, name);
+    fitted_ratio_latex.SetTextSize(0.05);
+    /*
+    fitted_ratio_latex.DrawLatex(0.55, 0.8, Form("p_{0} : %.2e #pm %.2e, p_{1} : %.2e #pm %.2e, p_{2} : %.2e #pm %.2e, p_{3} : %.2e #pm %.2e",
+						fit_amp_ratio -> GetParameter(0), fit_amp_ratio -> GetParError(0),
+						fit_amp_ratio -> GetParameter(1), fit_amp_ratio -> GetParError(1),
+						fit_amp_ratio -> GetParameter(2), fit_amp_ratio -> GetParError(2),
+						fit_amp_ratio -> GetParameter(3), fit_amp_ratio -> GetParError(3)));
+    */    
+    fitted_ratio_latex.DrawLatex(0.55, 0.8, Form("%.2e + %.2e e^{-%.2e(x - %.2e)}", fit_amp_ratio -> GetParameter(0), fit_amp_ratio -> GetParameter(1), fit_amp_ratio -> GetParameter(2), fit_amp_ratio -> GetParameter(3)));
+    c -> SaveAs(output_plot_dir + "/Pion_tail/Pion_tail_amp_ratio_" + name + ".pdf");
+  }
+
+  c -> Close();
   for(int i_par = 0; i_par < 6; i_par++){
     four_params_map[name].push_back(par_HL_four[i_par]);
     three_params_map[name].push_back(par_HL_three[i_par]);
@@ -619,8 +794,8 @@ void Compare_Fitted_Parameters(int i_par, TString par_name, TString titleX){
 void Fitting_HL(){
   setTDRStyle();
 
-
   Produce_1D_Hists("PionKEScale_MC_MCS.root", 14, 100, 5);
+
   Produce_1D_Hists("PionKEScale_MC_MCS.root", 10, 100, 5);
   Produce_1D_Hists("PionKEScale_MC_MCS.root", 8, 100, 5);
   Produce_1D_Hists("PionKEScale_MC_MCS.root", 5, 100, 5);
@@ -630,10 +805,10 @@ void Fitting_HL(){
 
 
 
-
+  /*
   Compare_Fitted_Parameters(0, "kappa_a", "#kappa_{a} [MeV^{3}]");
   Compare_Fitted_Parameters(1, "kappa_c", "#kappa_{c} [MeV]");
   Compare_Fitted_Parameters(2, "sigma_res", "#sigma_{res} [rad.]");
   Compare_Fitted_Parameters(3, "epsilon", "#varepsilon");
-
+  */
 }

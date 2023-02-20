@@ -400,4 +400,34 @@ void AddPhantomZero(double a, TString align, int digit_int, int digit_frac){
 
 }
 
+TString Get_KE_Range_Str(double KE, int KE_step){
+  
+  int N_KE_step = KE / KE_step;
+  TString out = Form("%dto%d", KE_step * N_KE_step, KE_step * (N_KE_step + 1));
+  return out;
+}
+
+TH1D* GetHist1D(TString histname){
+
+  TH1D *h = NULL;
+  std::map<TString, TH1D*>::iterator mapit = maphist.find(histname);
+  if(mapit != maphist.end()) return mapit->second;
+
+  return h;
+
+}
+
+void FillHist(TString histname, double value, double weight, int n_bin, double x_min, double x_max){
+
+  TH1D *this_hist = GetHist1D(histname);
+  if( !this_hist ){
+    this_hist = new TH1D(histname, "", n_bin, x_min, x_max);
+    this_hist->SetDirectory(NULL);
+    maphist[histname] = this_hist;
+  }
+
+  this_hist->Fill(value, weight);
+
+}
+
 #endif
