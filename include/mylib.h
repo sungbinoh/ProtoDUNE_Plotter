@@ -14,6 +14,7 @@ map<TString, TH1D*> maphist;
 map<TString, TH1F*> mapTH1F;
 map<TString, TH2D*> maphist2D;
 map<TString, TGraph*> map_gr;
+map<TString, TGraphErrors*> map_err_gr;
 map<TString, TGraphAsymmErrors*> map_asym_gr;
 map<TString, TFile*> mapfile;
 map<TString, TCanvas*> mapcanvas;
@@ -60,6 +61,21 @@ TString MC_category[N_MC] = {"NC", "NumuCC", "External_NC", "External_NueCC", "E
 
 const int N_smear_bit = 8;
 TString smear_flags[N_smear_bit] = {"NONE", "P", "Theta", "P_Theta", "Phi", "P_Phi", "Phi_Theta", "All"};
+
+// == HL parameters
+double HL_kappa_a = 0.022;
+double HL_kappa_c = 9.078;
+double HL_sigma_res = 0.001908;
+double HL_epsilon = 0.038;
+double MCS_Get_HL_Sigma(double segment_size, double P, double mass){
+  double kappa = ( (HL_kappa_a / (P*P)) + HL_kappa_c );
+  double one_over_pbeta = pow(P*P + mass * mass, 0.5) / (P*P);
+  double root_term = pow(segment_size / 14., 0.5);
+
+  double sigma_HL = kappa * one_over_pbeta * root_term * (1 + HL_epsilon * log(segment_size / 14.));
+  double out = pow(sigma_HL * sigma_HL + HL_sigma_res * HL_sigma_res, 0.5);
+  return out;
+}
 
 vector<double> vx, vy, vexl, vexh, veyl, veyh;
 

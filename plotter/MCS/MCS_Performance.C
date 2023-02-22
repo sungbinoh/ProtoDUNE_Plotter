@@ -122,5 +122,6 @@ void MCS_Performance(){
   setTDRStyle();
   
   //TString 
-  Run_file("MCS_Performance_1.0_MC_1GeV_MCS.root", 2, 2);
+  //Run_file("MCS_Performance_1.0_MC_1GeV_MCS.root", 2, 2);
+  Run_file("MCS_Performance_1.0_MC_1GeV_MCS_tail_1st.root", 2, 2);
 }

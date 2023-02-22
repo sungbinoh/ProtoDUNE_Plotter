@@ -10,6 +10,12 @@ map<TString, vector<double>> HL_points_y;
 map<TString, vector<double>> HL_points_x_err;
 map<TString, vector<double>> HL_points_y_err;
 
+double ratio_sigma = 2.9;
+double ratio_p0 = 0.0616;
+double ratio_p1 = 0.217;
+double ratio_p2 = 0.00421;
+double ratio_p3 = 252.;
+
 double Get_Ratio_Err(double denom, double numer, double denom_err, double numer_err, double corr){
 
   double ratio = numer / denom;
@@ -30,27 +36,10 @@ Double_t Gaus_AbsX(Double_t *x, Double_t *par){
   return func;
 }
 
-Double_t Private_Double_Gaus(Double_t *x, Double_t *par){
-
-  double ratio_p0 = 0.0616;
-  double ratio_p1 = 0.217;
-  double ratio_p2 = 0.00421;
-  double ratio_p3 = 252.;
-
-  Double_t this_P = par[0];
-  Double_t core_constant = par[1];
-  Double_t core_mu = 0.;
-  Double_t core_sigma = par[2];
-  Double_t bkg_constant = (ratio_p0 + ratio_p1 * exp(-1. * ratio_p2 * (this_P - ratio_p3))) * core_constant;
-  Double_t bkg_sigma = 2.8 * core_sigma;
-
-  Double_t arg_core = x[0] / core_sigma;
-  Double_t arg_bkg = x[0] / bkg_sigma;
-
-  Double_t func = core_constant * TMath::Exp(-0.5 * arg_core * arg_core) + bkg_constant * TMath::Exp(-0.5 * arg_bkg *arg_bkg);
-  return func;
+double Get_Amp_Ratio(double this_P, double core_constant){
+  double bkg_constant = (ratio_p0 + ratio_p1 * exp(-1. * ratio_p2 * (this_P - ratio_p3))) * core_constant;
+  return bkg_constant;
 }
-
 
 Double_t HL_function(Double_t *x, Double_t *par){
   //x[0] = x[0] / 1000.;
@@ -233,6 +222,9 @@ void Produce_1D_Hists(TString filename, int segment_size, double rebin_x, double
 
 void Perform_Fittings(const vector<TH1D*> & hist_1D_vec, const TH2D* this_2D, double integral_cut, int segment_size, TString name, TString TitleX){
   if(hist_1D_vec.size() == 0) return;
+  double paritcle_mass = 0.;
+  if(name.Contains("pion")) paritcle_mass = mass_pion;
+  if(name.Contains("muon")) paritcle_mass = mass_muon;
 
   TString output_plot_dir = getenv("PLOTTER_WORKING_DIR");
   output_plot_dir = output_plot_dir + "/output/plot/MCS/Fitting/";
@@ -244,8 +236,12 @@ void Perform_Fittings(const vector<TH1D*> & hist_1D_vec, const TH2D* this_2D, do
     double fit_x_min = -0.2;
     double fit_x_max = 0.2;
     TString momentum_range_str = Form("P_{true} : %.0f - %.0f GeV/c", this_P - this_P_err, this_P + this_P_err);
+    TString integral_str = Form("Total entries : %.1f", hist_1D_vec.at(i) -> Integral());
 
-    if(this_P < 300.) hist_1D_vec.at(i) -> Rebin(2);
+    if(this_P < 300.) hist_1D_vec.at(i) -> Rebin(10);
+    else if(this_P < 400.) hist_1D_vec.at(i) -> Rebin(5);
+    else hist_1D_vec.at(i) ->Rebin(2);
+
 
     if(hist_1D_vec.at(i) -> Integral() > integral_cut){
       double this_sigma = hist_1D_vec.at(i) -> GetRMS();
@@ -254,6 +250,7 @@ void Perform_Fittings(const vector<TH1D*> & hist_1D_vec, const TH2D* this_2D, do
       //fit_x_max = 0. + this_sigma;
       TF1 *this_gaus = new TF1("fit_gaus", "gaus", fit_x_min, fit_x_max);
       TF1 *this_double_gaus = new TF1("double_gaus", "gaus(0) + gaus(3)", fit_x_min, fit_x_max);
+      this_double_gaus -> SetNpx(1000);
       this_double_gaus -> SetParNames("Constant 1", "Mean 1", "Sigma 1", "Constant 2", "Mean 2", "Sigma 2");
       this_double_gaus -> SetParameters(this_integral * 0.5, 0., this_sigma, this_integral * 0.5, 0., this_sigma * 10.);
       this_double_gaus -> SetParLimits(0, this_integral * 0.01, this_integral * 10.);
@@ -262,7 +259,7 @@ void Perform_Fittings(const vector<TH1D*> & hist_1D_vec, const TH2D* this_2D, do
       this_double_gaus -> SetParLimits(4, -0.01, 0.01);
       this_double_gaus -> SetParLimits(2, this_sigma * 0.01, this_sigma * 100.);
       this_double_gaus -> SetParLimits(5, this_sigma * 0.5, this_sigma * 100.);
-
+      
       double sigma_corr = 0.;
       double amp_corr = 0.;
       TF1 *this_Gaus_AbsX = new TF1("fit_Gaus_AbsX", Gaus_AbsX, 0., fit_x_max, 3);
@@ -278,7 +275,6 @@ void Perform_Fittings(const vector<TH1D*> & hist_1D_vec, const TH2D* this_2D, do
 	TFitResultPtr r = hist_1D_vec.at(i) -> Fit(this_double_gaus,"S");
 	r->Print("V");
 	TMatrixDSym cov = r->GetCorrelationMatrix();
-	//vector<double> cov_elements;
 	double *cov_elements[36];
 	cov_elements[0] = cov.GetMatrixArray();
 	for(int j = 1; j < 36; j++){
@@ -286,7 +282,7 @@ void Perform_Fittings(const vector<TH1D*> & hist_1D_vec, const TH2D* this_2D, do
 	}
 	amp_corr = *cov_elements[3];
 	sigma_corr = *cov_elements[17];
-	//cout << "amp_corr : " << amp_corr << ", sigma_corr : " << sigma_corr << endl;
+
       }
       else{
 	hist_1D_vec.at(i) -> Fit(this_gaus, "R", "", fit_x_min, fit_x_max);
@@ -312,6 +308,7 @@ void Perform_Fittings(const vector<TH1D*> & hist_1D_vec, const TH2D* this_2D, do
 	this_std_err = this_Gaus_AbsX -> GetParError(2);
       }
       else if(name.Contains("pion")){
+	
 	double sigma_1 = this_double_gaus -> GetParameter(2);
 	double sigma_2 = this_double_gaus -> GetParameter(5);
 	if(sigma_1 < sigma_2){
@@ -354,6 +351,8 @@ void Perform_Fittings(const vector<TH1D*> & hist_1D_vec, const TH2D* this_2D, do
 	gaus2 -> SetLineColor(kCyan);
 	gaus2 -> SetLineStyle(7);
 	gaus2 -> Draw("lsame");
+
+
       }
       else{
 	this_const = this_gaus -> GetParameter(0);
@@ -405,7 +404,10 @@ void Perform_Fittings(const vector<TH1D*> & hist_1D_vec, const TH2D* this_2D, do
       hist_1D_vec.at(i) -> Write();
       TCanvas *c = new TCanvas("", "", 800, 600);
       canvas_margin(c);
-      TH1D * template_h = new TH1D("", "", 1., -0.2, 0.2);
+
+      double draw_x_min = max(-0.2, -1. * this_sigma * 4.0);
+      double draw_x_max = min(0.2, this_sigma * 4.0);
+      TH1D * template_h = new TH1D("", "", 1., draw_x_min, draw_x_max);
       template_h -> SetStats(0);
       template_h -> GetYaxis() -> SetRangeUser(0., hist_1D_vec.at(i) -> GetMaximum() * 1.5);
       template_h -> GetXaxis() -> SetTitle(TitleX + " [rad.]");
@@ -439,6 +441,8 @@ void Perform_Fittings(const vector<TH1D*> & hist_1D_vec, const TH2D* this_2D, do
         gaus2 -> SetLineStyle(7);
         gaus2 -> Draw("lsame");
 	this_double_gaus -> Draw("lsame");
+
+
 	TLegend *l = new TLegend(0.6, 0.5, 0.92, 0.92); 
 	l -> AddEntry(gaus1, Form("C : %.2e #pm %.2e", par[0], par_err[0]), "l");
 	l -> AddEntry(gaus1, Form("#mu : %.2e #pm %.2e", par[1], par_err[1]), "");
@@ -459,7 +463,6 @@ void Perform_Fittings(const vector<TH1D*> & hist_1D_vec, const TH2D* this_2D, do
       if(i < 10) i_str = "00" + i_str;
       else if(i < 100) i_str = "0" + i_str;
       TString plot_name = Form(output_plot_dir + "/Gaus/Gaus_" + name + "_" + i_str + ".pdf", i); 
-      TString integral_str = Form("Total entries : %.1f", hist_1D_vec.at(i) -> Integral());
       TString mu_result_str = Form("#mu : %.2e #pm %.2e", this_mu, this_mu_err);
       TString sigma_result_str = Form("#sigma : %.2e #pm %.2e", this_std, this_std_err);
       TLatex latex_entries, latex_mu, latex_sigma, latex_momentum;
@@ -508,9 +511,6 @@ void Perform_Fittings(const vector<TH1D*> & hist_1D_vec, const TH2D* this_2D, do
   TGraphErrors *sigma_gr = new TGraphErrors(N_points, &P_vec[0], &sigma_vec[0], &P_err_vec[0], &sigma_err_vec[0]);
   sigma_gr -> Draw("epsame");
 
-  double paritcle_mass = 0.;
-  if(name.Contains("pion")) paritcle_mass = mass_pion;
-  if(name.Contains("muon")) paritcle_mass = mass_muon;
   TF1 *HL_four_params = new TF1("HL_four_params", HL_function, 0., 2500., 6);
   HL_four_params -> SetParameters(0.022, 9.078, 0.001908, 0.038, paritcle_mass, segment_size + 0.);
   HL_four_params -> SetParLimits(0, 0., 0.3);
@@ -677,6 +677,7 @@ void Perform_Fittings(const vector<TH1D*> & hist_1D_vec, const TH2D* this_2D, do
     */    
     fitted_ratio_latex.DrawLatex(0.55, 0.8, Form("%.2e + %.2e e^{-%.2e(x - %.2e)}", fit_amp_ratio -> GetParameter(0), fit_amp_ratio -> GetParameter(1), fit_amp_ratio -> GetParameter(2), fit_amp_ratio -> GetParameter(3)));
     c -> SaveAs(output_plot_dir + "/Pion_tail/Pion_tail_amp_ratio_" + name + ".pdf");
+
   }
 
   c -> Close();
@@ -794,12 +795,12 @@ void Compare_Fitted_Parameters(int i_par, TString par_name, TString titleX){
 void Fitting_HL(){
   setTDRStyle();
 
-  Produce_1D_Hists("PionKEScale_MC_MCS.root", 14, 100, 5);
+  Produce_1D_Hists("PionKEScale_MC_MCS.root", 14, 100, 1);
 
-  Produce_1D_Hists("PionKEScale_MC_MCS.root", 10, 100, 5);
-  Produce_1D_Hists("PionKEScale_MC_MCS.root", 8, 100, 5);
-  Produce_1D_Hists("PionKEScale_MC_MCS.root", 5, 100, 5);
-  Produce_1D_Hists("PionKEScale_MC_MCS.root", 4, 100, 5);
+  Produce_1D_Hists("PionKEScale_MC_MCS.root", 10, 100, 1);
+  Produce_1D_Hists("PionKEScale_MC_MCS.root", 8, 100, 1);
+  Produce_1D_Hists("PionKEScale_MC_MCS.root", 5, 100, 1);
+  Produce_1D_Hists("PionKEScale_MC_MCS.root", 4, 100, 1);
 
   //Produce_1D_Hists("PionKEScale_0.5_MC_0.5GeV_MCS.root", 4, 100, 2);
 
