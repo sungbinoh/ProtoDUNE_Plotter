@@ -78,6 +78,23 @@ double ResLength_to_KE_BB(double ResLength, double mass){
   return KE_BB;
 }
 
+double MPVdEdxfun(Double_t *x, Double_t *par){
+
+  Double_t this_pitch = par[0];
+  Double_t this_mass = par[1];
+  Double_t this_range = x[0];
+  Double_t this_KE = ResLength_to_KE_BB(this_range, this_mass);
+
+  double this_gamma = (this_KE + this_mass) / this_mass;
+  double this_beta = sqrt( 1 - 1 / pow(this_gamma,2));
+
+  double this_xi = Landau_xi(this_KE, this_pitch, this_mass);
+
+  double eloss_mpv = this_xi*(log( 2*me*pow(this_gamma,2)*pow(this_beta,2) / I ) + log( this_xi / I ) + 0.2 - pow(this_beta,2) - densityEffect( this_beta, this_gamma ) ) / this_pitch;
+
+  return eloss_mpv;
+}
+
 Double_t vavgaufun(Double_t *x, Double_t *par) {
   
   Double_t this_pitch = par[0];
@@ -115,11 +132,31 @@ Double_t vavgaufun(Double_t *x, Double_t *par) {
 
   for(i=1.0; i<=np/2; i++) {
     xx = xlow + (i-.5) * step;
-    yy = (x[0] - this_a) / this_b;
-    f_vav = vav.Pdf(yy, this_kappa, this_beta_sqaure) / this_a;
+    yy = (xx - this_b) / this_a;
+    if(this_kappa > 10.){
+      double this_mu = vav.Mean(this_kappa, this_beta_sqaure);
+      double this_sigma = sqrt(vav.Variance(this_kappa, this_beta_sqaure));
+      f_vav = TMath::Gaus(yy, this_mu, this_sigma);
+    }
+    else if(this_kappa < 0.01){
+      f_vav = TMath::Landau(yy);
+      f_vav = f_vav / this_a;
+    }
+    else f_vav = vav.Pdf(yy, this_kappa, this_beta_sqaure) / this_a;
     sum += f_vav * TMath::Gaus(x[0],xx,this_Gaus_sigma);
+
     xx = xupp - (i-.5) * step;
-    f_vav = vav.Pdf(yy, this_kappa, this_beta_sqaure) / this_a;
+    yy = (xx - this_b) / this_a;
+    if(this_kappa > 10.){
+      double this_mu = vav.Mean(this_kappa, this_beta_sqaure);
+      double this_sigma = sqrt(vav.Variance(this_kappa, this_beta_sqaure));
+      f_vav = TMath::Gaus(yy, this_mu, this_sigma);
+    }
+    else if(this_kappa < 0.01){
+      f_vav = TMath::Landau(yy);
+      f_vav = f_vav / this_a;
+    }
+    else f_vav = vav.Pdf(yy, this_kappa, this_beta_sqaure) / this_a;
     sum += f_vav * TMath::Gaus(x[0],xx,this_Gaus_sigma);
   }
 
@@ -133,18 +170,22 @@ TF1 *vavgaufit(TH1D *his, Double_t *fitrange, Double_t *startvalues, Double_t *p
   TF1 *ffitold = (TF1*)gROOT->GetListOfFunctions()->FindObject(FunName);
   if (ffitold) delete ffitold;
 
-  TF1 *ffit = new TF1(FunName,vavgaufun,fitrange[0],fitrange[1],4);
+  TF1 *ffit = new TF1(FunName,vavgaufun,fitrange[0],fitrange[1],5);
   ffit->SetParameters(startvalues);
-  ffit->FixParameter(2, startvalues[2]);
-  ffit->SetParNames("pitch","KE","mass","GSigma");
+  cout << "[vavgaufit] startvalues[2] : " << startvalues[2] << endl;
+  cout << "[vavgaufit] startvalues[4] : " << startvalues[4] << endl;
+  ffit->SetParNames("pitch","KE","mass","GSigma","NormFactor");
 
-  for (i=0; i<4; i++) {
+  for (i=0; i<5; i++) {
     ffit->SetParLimits(i, parlimitslo[i], parlimitshi[i]);
   }
+  //ffit->FixParameter(0, 0.65);
+  ffit->FixParameter(2, startvalues[2]);
 
-  TFitResultPtr fitres = his->Fit(FunName,"RBOSQ"); // fit within specified range, use ParLimits, do not plot 
+
+  TFitResultPtr fitres = his->Fit(FunName,"RSN"); // fit within specified range, use ParLimits, do not plot 
   ffit->GetParameters(fitparams);    // obtain fit parameters
-  for (i=0; i<4; i++) {
+  for (i=0; i<5; i++) {
     fiterrors[i] = ffit->GetParError(i);     // obtain fit parameter errors
   }
 

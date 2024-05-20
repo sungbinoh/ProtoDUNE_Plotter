@@ -4,6 +4,8 @@
 #include "VavGausFit.h"
 #include "TRandom3.h"
 
+TString syst_flag;
+TFile *out_rootfile;
 TRandom3 gRan(1800);
 map<TString, vector<double>> fitting_results;
 /*
@@ -34,17 +36,16 @@ map<TString, double> MPV_proton_Data_err;
 map<TString, double> sigma_gaus_proton_Data_err;
 */
 void Fit_and_compare(TString particle, int rebin_x, int rebin_y, double res_range_cut){
-  //TString MC_filename = "hists_MC_dEdx_res_1.0GeV.root";
-  TString MC_filename = "hists_MC_dEdx_res_1.0GeV_no_trun.root";
-  TString Data_filename ="hists_Data_dEdx_res_1.0GeV.root";
+  TString MC_filename = "hists_MC_dEdx_res_1.0GeV.root";
+  TString Data_filename ="hists_Data_1.0GeV_" + syst_flag + ".root";
 
   TString input_file_dir = getenv("PLOTTER_WORKING_DIR");
   TString root_file_path = input_file_dir + "/input/root/dEdx_res/";
 
   TFile *f_MC = new TFile(root_file_path + MC_filename);
   gDirectory -> Cd(particle);
-  //TH2D *MC_2D = (TH2D*)gDirectory -> Get("ResRange_vs_dEdx");
-  TH2D *MC_2D = (TH2D*)gDirectory -> Get("ResRange_vs_dEdx_corr");
+  TH2D *MC_2D = (TH2D*)gDirectory -> Get("ResRange_vs_dEdx");
+  //TH2D *MC_2D = (TH2D*)gDirectory -> Get("ResRange_vs_dEdx_corr");
   //TH2D *MC_2D = (TH2D*)gDirectory -> Get("ResRange_vs_dEdx_smeared");
 
   TFile *f_Data =new TFile(root_file_path + Data_filename);
@@ -101,20 +102,18 @@ void Fit_and_compare(TString particle, int rebin_x, int rebin_y, double res_rang
     template_h -> SetStats(0);
     template_h -> GetYaxis() -> SetRangeUser(0., max_y * 1.5);
     template_h -> GetXaxis() -> SetTitle("dE/dx [MeV/cm]");
-    template_h -> GetXaxis() -> SetTitleSize(0.05);
-    template_h -> GetXaxis() -> SetTitleOffset(1.1);
-    template_h -> GetXaxis() -> SetLabelSize(0.05);
+    template_h -> GetXaxis() -> SetTitleSize(0.037);
+    template_h -> GetXaxis() -> SetTitleOffset(1.4);
+    template_h -> GetXaxis() -> SetLabelSize(0.035);
     template_h -> GetYaxis() -> SetTitle("A.U.");
     template_h -> GetYaxis() -> SetTitleSize(0.05);
-    template_h -> GetYaxis() -> SetLabelSize(0.05);
+    template_h -> GetYaxis() -> SetLabelSize(0.035);
     template_h -> Draw();
 
-    this_Data_1D -> SetMarkerColorAlpha(kBlue, 0.35);
-    this_Data_1D -> SetLineColorAlpha(kBlue, 0.35);
-    //this_Data_1D -> SetMarkerColor(kBlue);
+    this_Data_1D -> SetMarkerColor(kBlue);
     this_Data_1D -> SetMarkerStyle(22);
     this_Data_1D -> SetMarkerSize(0.7);
-    //this_Data_1D -> SetLineColor(kBlue);
+    this_Data_1D -> SetLineColor(kBlue);
     this_Data_1D -> SetLineWidth(3);
     this_Data_1D -> Draw("epsame");
 
@@ -166,14 +165,14 @@ void Fit_and_compare(TString particle, int rebin_x, int rebin_y, double res_rang
     this_Data_Langau -> SetLineWidth(2);
     this_Data_Langau -> Draw("lsame");
 
-    double this_Data_Landau_sigma = this_Data_Langau_fit ->GetParameter(0);
-    double this_Data_Landau_sigma_err =this_Data_Langau_fit -> GetParError(0);
-    double this_Data_MPV = this_Data_Langau_fit -> GetParameter(1);
-    double this_Data_MPV_err = this_Data_Langau_fit -> GetParError(1);
-    double this_Data_par2 = this_Data_Langau_fit -> GetParameter(2);
-    double this_Data_par2_err = this_Data_Langau_fit -> GetParError(2);
-    double this_Data_Gaus_sigma = this_Data_Langau_fit -> GetParameter(3);
-    double this_Data_Gaus_sigma_err= this_Data_Langau_fit -> GetParError(3);
+    double this_Data_Landau_sigma = this_Data_Langau ->GetParameter(0);
+    double this_Data_Landau_sigma_err =this_Data_Langau -> GetParError(0);
+    double this_Data_MPV = this_Data_Langau -> GetParameter(1);
+    double this_Data_MPV_err = this_Data_Langau -> GetParError(1);
+    double this_Data_par2 = this_Data_Langau -> GetParameter(2);
+    double this_Data_par2_err = this_Data_Langau -> GetParError(2);
+    double this_Data_Gaus_sigma = this_Data_Langau -> GetParameter(3);
+    double this_Data_Gaus_sigma_err= this_Data_Langau -> GetParError(3);
 
     TF1 *this_MC_Langau_fit = langaufit(this_MC_1D_clone, fitting_range, sv,pllo,plhi,fp,fpe,&chisqr,&ndf,&status, "Langau_MC_Langau" + this_hist_name);
     TF1 *this_MC_Langau = new TF1("Langau_MC_Langau", langaufun, fitting_range[0], fitting_range[1], 4);
@@ -197,13 +196,11 @@ void Fit_and_compare(TString particle, int rebin_x, int rebin_y, double res_rang
     template_h -> Draw();
     this_Data_1D -> Draw("epsame");
     this_MC_1D -> Draw("epsame");
-
     if(particle == "muon"){
       this_Data_Langau -> Draw("lsame");
       this_MC_Langau -> Draw("lsame");
     }
-    this_Data_1D -> Draw("epsame");
-    this_MC_1D -> Draw("epsame");
+
     double this_MC_Vavgau_pitch = -1.;
     double this_MC_Vavgau_KE = -1.;
     double this_MC_Vavgau_sigma = -1.;
@@ -271,10 +268,10 @@ void Fit_and_compare(TString particle, int rebin_x, int rebin_y, double res_rang
       this_MC_Vavgau_sigma_err = this_MC_Vavgau_fit -> GetParError(3);
     } 
 
-    TLegend *l = new TLegend(0.50, 0.25, 0.92, 0.80);
+    TLegend *l = new TLegend(0.50, 0.50, 0.92, 0.85);
     l -> AddEntry(this_MC_1D, "MC", "pl");
     if(particle == "muon"){
-      l -> AddEntry(this_MC_Langau, Form("#sigma_{Landau} : %.2f #pm %.2f", this_MC_Landau_sigma, this_MC_Landau_sigma_err), "");
+      l -> AddEntry(this_MC_1D, Form("#sigma_{Landau} : %.2f #pm %.2f", this_MC_Landau_sigma, this_MC_Landau_sigma_err), "");
       l -> AddEntry(this_MC_1D, Form("MPV : %.2f #pm %.2f", this_MC_MPV, this_MC_MPV_err), "");
       l -> AddEntry(this_MC_1D, Form("Par2 : %.2f #pm %.2f", this_MC_par2, this_MC_par2_err), "");
       l -> AddEntry(this_MC_1D, Form("#sigma_{Gaus} : %.2f #pm %.2f", this_MC_Gaus_sigma, this_MC_Gaus_sigma_err), "");
@@ -287,7 +284,7 @@ void Fit_and_compare(TString particle, int rebin_x, int rebin_y, double res_rang
     l -> AddEntry(this_MC_1D, "     ", "");
     l -> AddEntry(this_Data_1D, "Data", "pl");
     if(particle == "muon"){
-      l -> AddEntry(this_Data_Langau, Form("#sigma_{Landau} : %.2f #pm %.2f", this_Data_Landau_sigma, this_Data_Landau_sigma_err), "");
+      l -> AddEntry(this_Data_1D, Form("#sigma_{Landau} : %.2f #pm %.2f", this_Data_Landau_sigma, this_Data_Landau_sigma_err), "l");
       l -> AddEntry(this_Data_1D, Form("MPV : %.2f #pm %.2f", this_Data_MPV, this_Data_MPV_err), "");
       l -> AddEntry(this_Data_1D, Form("Par2 : %.2f #pm %.2f", this_Data_par2, this_Data_par2_err), "");
       l -> AddEntry(this_Data_1D, Form("#sigma_{Gaus} : %.2f #pm %.2f", this_Data_Gaus_sigma, this_Data_Gaus_sigma_err), "");
@@ -300,28 +297,23 @@ void Fit_and_compare(TString particle, int rebin_x, int rebin_y, double res_rang
 
     l -> Draw("same");
  
-    TLatex latex_ProtoDUNE, latex_particle, latex_Nhits, latex_method, latex_syst_flag;
+    TLatex latex_ProtoDUNE, latex_particle, latex_Nhits, latex_method;
     latex_ProtoDUNE.SetNDC();
     latex_particle.SetNDC();
     latex_Nhits.SetNDC();
     latex_method.SetNDC();
     latex_particle.SetTextAlign(31);
-    latex_ProtoDUNE.SetTextSize(0.04);
-    latex_particle.SetTextSize(0.04);
+    latex_ProtoDUNE.SetTextSize(0.03);
+    latex_particle.SetTextSize(0.03);
     latex_Nhits.SetTextSize(0.06);
     latex_method.SetTextSize(0.06);
     latex_ProtoDUNE.DrawLatex(0.16, 0.96, "#font[62]{ProtoDUNE-SP} #font[42]{#it{#scale[0.8]{Preliminary}}}");
-    if(particle == "muon") latex_particle.DrawLatex(0.95, 0.96, "Beam Muons");
-    else latex_particle.DrawLatex(0.95, 0.96, particle);
+    latex_particle.DrawLatex(0.95, 0.96, particle);
     //latex_Nhits.DrawLatex(0.18, 0.80, Nhits_latex);
     latex_method.DrawLatex(0.18, 0.87, ResRange_range_latex);
-    latex_syst_flag.SetNDC();
-    latex_syst_flag.SetTextSize(0.06);
-    TString syst_flag_latex_str = "Scale corrected";
-    latex_syst_flag.DrawLatex(0.18, 0.82, syst_flag_latex_str);
     TString output_plot_dir = getenv("PLOTTER_WORKING_DIR");
     output_plot_dir = output_plot_dir + "/output/plot/dEdx_res/1D/" + particle + "/";
-    c -> SaveAs(output_plot_dir + this_hist_name + "_scale_corr.pdf");
+    c -> SaveAs(output_plot_dir + this_hist_name + "_" + syst_flag + ".pdf");
 
     c -> Close();
 
@@ -432,9 +424,15 @@ void Draw_comparisons(TString x1, TString y1, TString x2, TString y2,
 
   TString output_plot_dir = getenv("PLOTTER_WORKING_DIR");
   output_plot_dir = output_plot_dir + "/output/plot/dEdx_res/comparison/";
-  c -> SaveAs(output_plot_dir + outfile_name + ".pdf");
+  c -> SaveAs(output_plot_dir + outfile_name + "_" + syst_flag + ".pdf");
 
   c -> Close();
+
+  gr_1 -> SetName(x1 + "_vs_" + y1);
+  gr_2 -> SetName(x2 + "_vs_" + y2);
+  gr_1 -> Write();
+  gr_2 -> Write();
+  
 }
 
 void Draw_MPV_corrections(TString x1, TString y1, TString x2, TString y2,
@@ -529,7 +527,7 @@ void Draw_MPV_corrections(TString x1, TString y1, TString x2, TString y2,
 
   TString output_plot_dir = getenv("PLOTTER_WORKING_DIR");
   output_plot_dir = output_plot_dir + "/output/plot/dEdx_res/correction/";
-  c -> SaveAs(output_plot_dir + outfile_name + ".pdf");
+  c -> SaveAs(output_plot_dir + outfile_name + "_" + syst_flag + ".pdf");
 
   c -> Close();
 }
@@ -624,7 +622,7 @@ void Draw_sigma_gaus_corrections(TString x1, TString y1, TString x2, TString y2,
 
   TString output_plot_dir = getenv("PLOTTER_WORKING_DIR");
   output_plot_dir = output_plot_dir + "/output/plot/dEdx_res/correction/";
-  c -> SaveAs(output_plot_dir + outfile_name + ".pdf");
+  c -> SaveAs(output_plot_dir + outfile_name + "_" + syst_flag + ".pdf");
 
   c -> Close();
 
@@ -688,7 +686,7 @@ void Compare_Lan_Gaus(){
 
   TString output_plot_dir = getenv("PLOTTER_WORKING_DIR");
   output_plot_dir = output_plot_dir + "/output/plot/dEdx_res/LanGau/";
-  c -> SaveAs(output_plot_dir + "Compare_sigma_Gaus.pdf");
+  c -> SaveAs(output_plot_dir + "Compare_sigma_Gaus_" + syst_flag + ".pdf");
 }
 
 void Test_LanGau_Conv(){
@@ -785,13 +783,20 @@ void Run_Draw_comparisons(){
 
 }
 
-void Compare_Lan_gau(){
+void Make_syst_summary(TString this_syst_flag){
 
+  syst_flag = this_syst_flag;
   setTDRStyle();
   // == Variable plots
   //Fit_and_compare("proton", 1, 1, 100.);
-  Fit_and_compare("muon", 1, 1, 100.);
+  Fit_and_compare("muon", 1, 1, 50.);
+
+  TString WORKING_DIR = getenv("PLOTTER_WORKING_DIR");
+  TString out_root_name = WORKING_DIR + "/output/root/dEdx_res/Syst/Muon_dEdx_" + syst_flag + ".root";
+  out_rootfile = new TFile(out_root_name, "RECREATE");
+  out_rootfile -> cd();
   Run_Draw_comparisons();
+  out_rootfile -> Close();
 
   // == Test LanGau
   //Compare_Lan_Gaus();

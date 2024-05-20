@@ -101,6 +101,32 @@ void Rebin_with_overflow(TString histname, int N_bin, double binx[]){
   maphist[histname + "rebin"] -> SetBinContent(N_bin - 1, last_bin);
 }
 
+TH1D* Add_Under_and_Overflow(TH1D* hist){
+
+  TH1D* out = (TH1D*)hist -> Clone();
+  double this_underflow_content = hist -> GetBinContent(0);
+  double this_underflow_err = hist -> GetBinError(0);
+  double this_first_bin_content = hist -> GetBinContent(1);
+  double this_first_bin_err = hist -> GetBinError(1);
+  double new_first_bin_content = this_underflow_content + this_first_bin_content;
+  double new_first_bin_err = sqrt(pow(this_underflow_err, 2.) + pow(this_first_bin_err, 2.));
+  out -> SetBinContent(1, new_first_bin_content);
+  out -> SetBinError(1, new_first_bin_err);
+
+  int N_bins = hist -> GetNbinsX();
+  double this_overflow_content = hist -> GetBinContent(N_bins + 1);
+  double this_overflow_err = hist -> GetBinError(N_bins + 1);
+  double this_last_bin_content =  hist -> GetBinContent(N_bins);
+  double this_last_bin_err =  hist -> GetBinError(N_bins);
+  double new_last_bin_content = this_overflow_content + this_last_bin_content;
+  double new_last_bin_err = sqrt(pow(this_overflow_err, 2.) + pow(this_last_bin_err, 2.));
+  out -> SetBinContent(N_bins, new_last_bin_content);
+  out -> SetBinError(N_bins, new_last_bin_err);
+
+  return out;
+  
+}
+
 void change_to_pseudo_data(TString current_histname){
   
   int N_bin = maphist[current_histname] -> GetNbinsX();

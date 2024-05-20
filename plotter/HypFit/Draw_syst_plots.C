@@ -11,12 +11,13 @@ map<TString, vector<int>> N_points_map;
 map<TString, vector<double>> Gaus_par_map;
 map<TString, double> Gaus_fit_low;
 map<TString, double> Gaus_fit_high;
-
+TString syst_flag = "";
 
 void Produce_1D_Res_Hist(TString filename, TString method, TString true_or_BB, TString res_or_invres, TString particle, TString partcle_latex, TString Nhits, TString Nhits_latex, double xmin, double xmax, int rebin_KE, int rebin_res){
 
   TString input_file_dir = getenv("PLOTTER_WORKING_DIR");
   TString root_file_path = input_file_dir + "/input/root/HypFit/Syst/" + filename;
+  if(filename.Contains("Data")) root_file_path = input_file_dir + "/input/root/HypFit/Syst/" + filename;
   TFile *f_input = new TFile(root_file_path);
   gDirectory -> Cd(method);
 
@@ -67,6 +68,7 @@ void Produce_1D_Res_Hist(TString filename, TString method, TString true_or_BB, T
     double max_y = this_hist_1D -> GetMaximum();
 
     double this_integral = this_hist_1D -> Integral();
+    cout << "[Produce_1D_Res_Hist] " << this_hist_name << ", this_integral : " << this_integral<< endl;
     if(this_integral < 200.) continue;
 
     TCanvas *c = new TCanvas("", "", 800, 600);
@@ -89,7 +91,7 @@ void Produce_1D_Res_Hist(TString filename, TString method, TString true_or_BB, T
     int max_bin = this_hist_1D -> GetMaximumBin();
     double max_x = this_hist_1D -> GetBinCenter(max_bin);
     double fitting_width = 0.10;
-    double fit_x_low = max_x - fitting_width;
+    double fit_x_low = max_x - 2.*fitting_width;
     double fit_x_high = max_x + fitting_width;
 
     TF1 *this_Gaus = new TF1("this_Gaus", "gaus", fit_x_low, fit_x_high);
@@ -112,7 +114,7 @@ void Produce_1D_Res_Hist(TString filename, TString method, TString true_or_BB, T
       double this_content = max(this_hist_1D -> GetBinContent(j), 0.);
       cal_mean = cal_mean + this_content * this_x;
       cal_denom = cal_denom + this_content;
-      cout << j << ", this_content : " << this_content << ", this_x : " << this_x << endl;
+      //cout << j << ", this_content : " << this_content << ", this_x : " << this_x << endl;
     }
     cal_mean = cal_mean / cal_denom;
     double cal_4th_moment = 0.;
@@ -174,19 +176,20 @@ void Produce_1D_Res_Hist(TString filename, TString method, TString true_or_BB, T
     latex_method.DrawLatex(0.18, 0.87, method + ", " + KE_range_latex);
     TString output_plot_dir = getenv("PLOTTER_WORKING_DIR");
     output_plot_dir = output_plot_dir + "/output/plot/HypFit/Performance/" + res_or_invres + "/1D/";
-    c -> SaveAs(output_plot_dir + this_hist_name + ".pdf");
+    c -> SaveAs(output_plot_dir + this_hist_name + "_" + syst_flag + ".pdf");
 
     c -> Close();
   }
   
   f_input -> Close();
-  cout << "N_binsX : " << N_binsX << ", N_binsY : " << N_binsY << endl;
+  //cout << "N_binsX : " << N_binsX << ", N_binsY : " << N_binsY << endl;
 }
 
 void Produce_1D_Res_Hist_Fit_DoubleGaus(TString filename, TString method, TString true_or_BB, TString res_or_invres, TString particle, TString partcle_latex, TString Nhits, TString Nhits_latex, double xmin, double xmax, int rebin_KE, int rebin_res){
 
   TString input_file_dir = getenv("PLOTTER_WORKING_DIR");
   TString root_file_path = input_file_dir + "/input/root/HypFit/Syst/" + filename;
+  if(filename.Contains("Data")) root_file_path = input_file_dir + "/input/root/HypFit/Syst/" + filename;
   TFile *f_input = new TFile(root_file_path);
   gDirectory -> Cd(method);
 
@@ -276,7 +279,7 @@ void Produce_1D_Res_Hist_Fit_DoubleGaus(TString filename, TString method, TStrin
     double max_x = this_hist_1D -> GetBinCenter(max_bin);
     double fitting_width = fabs(Gaus_fit_high[pion_map_arg] - Gaus_fit_low[proton_map_arg]);
     double fit_x_low = Gaus_fit_low[proton_map_arg] - fitting_width * 0.1;
-    double fit_x_high = Gaus_fit_high[pion_map_arg] + fitting_width * 0.1;
+    double fit_x_high = Gaus_fit_high[pion_map_arg] + fitting_width * 0.15;
     TF1 *this_Gaus = new TF1("this_Gaus", "gaus(0) + gaus(3)", fit_x_low, fit_x_high);
     // == Define initial parameters for double gaussian
     this_Gaus -> SetParameters(Gaus_par_map[pion_map_arg].at(0), Gaus_par_map[pion_map_arg].at(1), Gaus_par_map[pion_map_arg].at(2), Gaus_par_map[proton_map_arg].at(0), Gaus_par_map[proton_map_arg].at(1), Gaus_par_map[proton_map_arg].at(2));
@@ -335,7 +338,7 @@ void Produce_1D_Res_Hist_Fit_DoubleGaus(TString filename, TString method, TStrin
       if(this_Gaus -> GetParameter(1) - this_Gaus -> GetParameter(4) < 0.15) this_content = this_hist_1D -> GetBinContent(j); // If two Gaussians are too close to each other, do not subtract the proton contribution
       cal_mean = cal_mean + this_content * this_x;
       cal_denom = cal_denom + this_content;
-      cout << j << ", this_content : " << this_content << ", this_x : " << this_x << endl;
+      //cout << j << ", this_content : " << this_content << ", this_x : " << this_x << endl;
     }
     cal_mean = cal_mean / cal_denom;
     double cal_4th_moment = 0.;
@@ -394,7 +397,7 @@ void Produce_1D_Res_Hist_Fit_DoubleGaus(TString filename, TString method, TStrin
     latex_method.DrawLatex(0.18, 0.87, method + ", " + KE_range_latex);
     TString output_plot_dir = getenv("PLOTTER_WORKING_DIR");
     output_plot_dir = output_plot_dir + "/output/plot/HypFit/Performance/" + res_or_invres + "/1D/";
-    c -> SaveAs(output_plot_dir + "Double_Gaus_" + this_hist_name + ".pdf");
+    c -> SaveAs(output_plot_dir + "Double_Gaus_" + this_hist_name + "_" + syst_flag + ".pdf");
 
     c -> Close();
   }
@@ -406,6 +409,7 @@ void Produce_1D_Res_Hist_all_MC(TString filename, TString method, TString true_o
 
   TString input_file_dir = getenv("PLOTTER_WORKING_DIR");
   TString root_file_path = input_file_dir + "/input/root/HypFit/Syst/" + filename;
+  if(filename.Contains("Data")) root_file_path = input_file_dir + "/input/root/HypFit/Syst/" + filename;
   TFile *f_input = new TFile(root_file_path);
   gDirectory -> Cd(method);
 
@@ -466,6 +470,7 @@ void Produce_1D_Res_Hist_all_MC(TString filename, TString method, TString true_o
     double max_y = this_hist_1D -> GetMaximum();
 
     double this_integral = this_hist_1D -> Integral();
+    cout << "[Produce_1D_Res_Hist_all_MC] " << this_hist_name << ", this_integral : " << this_integral << endl;
     if(this_integral < 200.) continue;
 
     TCanvas *c = new TCanvas("", "", 800, 600);
@@ -544,7 +549,7 @@ void Produce_1D_Res_Hist_all_MC(TString filename, TString method, TString true_o
       if(this_Gaus -> GetParameter(1) - this_Gaus -> GetParameter(4) < 0.15) this_content = this_hist_1D -> GetBinContent(j); // If two Gaussians are too close to each other, do not subtract the proton contribution
       cal_mean = cal_mean + this_content * this_x;
       cal_denom = cal_denom + this_content;
-      cout << j << ", this_content : " << this_content << ", this_x : " << this_x << endl;
+      //cout << j << ", this_content : " << this_content << ", this_x : " << this_x << endl;
     }
     cal_mean = cal_mean / cal_denom;
     double cal_4th_moment = 0.;
@@ -552,7 +557,7 @@ void Produce_1D_Res_Hist_all_MC(TString filename, TString method, TString true_o
     for(int j = low_x_bin; j < high_x_bin + 1; j ++){
       double this_x = this_hist_1D -> GetBinCenter(j);
       double this_content = max(this_hist_1D -> GetBinContent(j) - this_Gaus2 -> Eval(this_x), 0.);
-      if(this_Gaus -> GetParameter(1) - this_Gaus -> GetParameter(4) < 0.15) this_content = this_hist_1D -> GetBinContent(j); // If two Gaussians are too close to each other, do not subtract the proton contribution
+      if(this_Gaus -> GetParameter(1) -this_Gaus -> GetParameter(4) < 0.15) this_content = this_hist_1D -> GetBinContent(j); // If two Gaussians are too close to each other, do not subtract the proton contribution
       cal_4th_moment = cal_4th_moment + pow(this_x - cal_mean, 4.) * this_content;
       cal_sigma = cal_sigma + pow(this_x - cal_mean, 2.) * this_content;
     }
@@ -608,13 +613,13 @@ void Produce_1D_Res_Hist_all_MC(TString filename, TString method, TString true_o
     latex_method.DrawLatex(0.18, 0.87, method + ", " + KE_range_latex);
     TString output_plot_dir = getenv("PLOTTER_WORKING_DIR");
     output_plot_dir = output_plot_dir + "/output/plot/HypFit/Performance/" + res_or_invres + "/1D/";
-    c -> SaveAs(output_plot_dir + "Double_Gaus_" + this_hist_name + ".pdf");
+    c -> SaveAs(output_plot_dir + "Double_Gaus_" + this_hist_name + "_" + syst_flag + ".pdf");
 
     c -> Close();
   }
 
   f_input -> Close();
-  cout << "N_binsX : " << N_binsX << ", N_binsY : " << N_binsY << endl;
+  //cout << "N_binsX : " << N_binsX << ", N_binsY : " << N_binsY << endl;
 }
 
 
@@ -659,7 +664,7 @@ void Draw_Comparisons(vector<vector<double>> res_vec, vector<vector<double>> KE_
   this_N_points_str = this_N_points_str + "_" + particle;
   TLegend *l = new TLegend(0.2, 0.6, 0.9, 0.90);
   l -> SetNColumns(2);
-  int color_array[7] = {632, 800, 400, 416, 600, 880, 920};
+  int color_array[7] = {632, 800, 401, 417, 600, 880, 920};
   cout << "[Draw_Comparisons] N_points_map[this_N_points_str].size() : " << N_points_map[this_N_points_str].size() << endl;
   int N_for_loop = min(res_vec.size(), N_points_map[this_N_points_str].size());
   for(unsigned int i = 0; i < N_for_loop; i++){
@@ -682,14 +687,14 @@ void Draw_Comparisons(vector<vector<double>> res_vec, vector<vector<double>> KE_
   latex_ProtoDUNE.DrawLatex(0.16, 0.96, "#font[62]{ProtoDUNE-SP} #font[42]{#it{#scale[0.8]{Preliminary}}}");
   TString output_plot_dir = getenv("PLOTTER_WORKING_DIR");
   output_plot_dir = output_plot_dir + "/output/plot/HypFit/Performance/";
-  c -> SaveAs(output_plot_dir + out_name + ".pdf");
+  c -> SaveAs(output_plot_dir + out_name + "_" + syst_flag + ".pdf");
 
 }
 
 void Draw_Comparisons_MC_vs_Data(vector<vector<double>> MC_res_vec, vector<vector<double>> MC_KE_vec, vector<vector<double>> MC_res_err_vec, vector<vector<double>> MC_KE_err_vec,
 				 vector<vector<double>> data_res_vec, vector<vector<double>> data_KE_vec, vector<vector<double>> data_res_err_vec, vector<vector<double>> data_KE_err_vec,
-				 vector<TString> legend_vec,
-				 double x_min, double x_max, double y_min, double y_max, TString true_or_BB, TString title_Y, TString out_name){
+				 vector<TString> legend_vec, vector<TString> Nhit_str_vec,
+				 double x_min, double x_max, double y_min, double y_max, TString true_or_BB, TString title_Y, TString res_or_bias, TString out_name){
 
   TCanvas *c = new TCanvas("", "", 800, 600);
   canvas_margin(c);
@@ -742,8 +747,8 @@ void Draw_Comparisons_MC_vs_Data(vector<vector<double>> MC_res_vec, vector<vecto
   gr_ex2 -> SetMarkerStyle(22);
   gr_ex2 -> SetMarkerColor(kBlack);
   l -> AddEntry(gr_ex2, "Data", "lp");
-
-  int color_array[7] = {632, 800, 400, 416, 600, 880, 920};
+  // Yellow : 400, Green : 416
+  int color_array[7] = {632, 800, 401, 417, 600, 880, 920};
   cout << "[Draw_Comparisons] N_points_map[this_N_points_str].size() : " << N_points_map[MC_N_points_str].size() << endl;
   int MC_N_for_loop = min(MC_res_vec.size(), N_points_map[MC_N_points_str].size());
   for(unsigned int i = 0; i < MC_N_for_loop; i++){
@@ -781,20 +786,35 @@ void Draw_Comparisons_MC_vs_Data(vector<vector<double>> MC_res_vec, vector<vecto
   latex_ProtoDUNE.DrawLatex(0.16, 0.96, "#font[62]{ProtoDUNE-SP} #font[42]{#it{#scale[0.8]{Preliminary}}}");
   TString output_plot_dir = getenv("PLOTTER_WORKING_DIR");
   output_plot_dir = output_plot_dir + "/output/plot/HypFit/Performance/";
-  c -> SaveAs(output_plot_dir + out_name + ".pdf");
+  c -> SaveAs(output_plot_dir + out_name + "_" + syst_flag + ".pdf");
 
-  ///TString WORKING_DIR = getenv("PLOTTER_WORKING_DIR");
-  //TString out_root_name = WORKING_DIR + "/output/root/HypFit/"
+  TString WORKING_DIR = getenv("PLOTTER_WORKING_DIR");
+  TString out_root_name = WORKING_DIR + "/output/root/HypFit/" + res_or_bias + "_" + syst_flag + ".root";
+  TFile *outfile = new TFile(out_root_name, "RECREATE");
+  outfile -> cd();
+  
+  for(unsigned int i = 0; i < MC_N_for_loop; i++){
+    TString i_str = Form("MC_%d", i);
+    map_err_gr[i_str] -> SetName(res_or_bias + "_MC_" + Nhit_str_vec.at(i));
+    map_err_gr[i_str] -> Write();
+  }
+  for(unsigned int i = 0; i < data_N_for_loop; i++){
+    TString i_str = Form("data_%d", i);
+    map_err_gr[i_str] -> SetName(res_or_bias + "_Data_" + Nhit_str_vec.at(i));
+    map_err_gr[i_str] -> Write();
+  }
+  
+  outfile -> Close();
 
 
   c -> Close();
 }
 
 void Draw_True_vs_BB(TString filename, double xmin, double xmax, double ymin, double ymax){
-  // == For Figure 6
 
   TString input_file_dir = getenv("PLOTTER_WORKING_DIR");
   TString root_file_path = input_file_dir + "/input/root/HypFit/Syst/" + filename;
+  if(filename.Contains("Data")) root_file_path = input_file_dir + "/input/root/HypFit/Syst/" + filename;
   TFile *f_input = new TFile(root_file_path);
   gDirectory -> Cd("Daughter_pion");
 
@@ -838,8 +858,8 @@ void Draw_True_vs_BB(TString filename, double xmin, double xmax, double ymin, do
   xqualy -> SetLineColor(kRed);
   xqualy -> Draw("lsame");
 
-  TLegend *l = new TLegend(0.20, 0.75, 0.60, 0.93);
-  l -> AddEntry(xqualy, "KE_{true} = KE_{range}", "l");
+  TLegend *l = new TLegend(0.25, 0.65, 0.45, 0.85);
+  l -> AddEntry(xqualy, "x = y", "l");
   l -> Draw("same");
 
   TLatex latex_ProtoDUNE, latex_particle;
@@ -853,7 +873,7 @@ void Draw_True_vs_BB(TString filename, double xmin, double xmax, double ymin, do
 
   TString output_plot_dir = getenv("PLOTTER_WORKING_DIR");
   output_plot_dir = output_plot_dir + "/output/plot/HypFit/True_vs_Range/";
-  c -> SaveAs(output_plot_dir + "Pion_KE_True_vs_Range_before_chi2_cut.pdf");
+  c -> SaveAs(output_plot_dir + "Pion_KE_True_vs_Range_before_chi2_cut_" + syst_flag + ".pdf");
 
   template_h -> Draw("colz");
   hist_pion_after_chi2_cut -> Draw("colzsame");
@@ -861,7 +881,7 @@ void Draw_True_vs_BB(TString filename, double xmin, double xmax, double ymin, do
   l -> Draw("same");
   latex_ProtoDUNE.DrawLatex(0.16, 0.96, "#font[62]{ProtoDUNE-SP} #font[42]{#it{#scale[0.8]{Preliminary}}}");
   latex_particle.DrawLatex(0.90, 0.96, "True #pi^{+} (reconstructed as #pi^{+})");
-  c -> SaveAs(output_plot_dir + "Pion_KE_True_vs_Range_after_chi2_cut.pdf");
+  c -> SaveAs(output_plot_dir + "Pion_KE_True_vs_Range_after_chi2_cut_" + syst_flag + ".pdf");
 
   c -> Close();
 
@@ -869,10 +889,10 @@ void Draw_True_vs_BB(TString filename, double xmin, double xmax, double ymin, do
 }
 
 void Draw_True_vs_Chi2(TString filename, double xmin, double xmax, double ymin, double ymax){
-  // == For Figure 5
 
   TString input_file_dir = getenv("PLOTTER_WORKING_DIR");
   TString root_file_path = input_file_dir + "/input/root/HypFit/Syst/" + filename;
+  if(filename.Contains("Data")) root_file_path = input_file_dir + "/input/root/HypFit/Syst/" + filename;
   TFile *f_input = new TFile(root_file_path);
   gDirectory -> Cd("Daughter_pion");
 
@@ -884,14 +904,12 @@ void Draw_True_vs_Chi2(TString filename, double xmin, double xmax, double ymin, 
     cout << "[Draw_True_vs_BB] Nullptr input histograms!!!" << endl;
     return;
   }
-  hist_pion_before_chi2_cut -> RebinX(2);
 
   TCanvas *c = new TCanvas("", "", 920, 800);
   canvas_margin(c);
   gStyle -> SetOptStat(1111);
   c->SetRightMargin(0.15);
 
-  // == Draw 2D
   double z_max = hist_pion_before_chi2_cut -> GetMaximum();
   TH2D *template_h = new TH2D("", "", 1, xmin, xmax, 1, ymin, ymax);
   gStyle->SetOptTitle(0);
@@ -930,41 +948,8 @@ void Draw_True_vs_Chi2(TString filename, double xmin, double xmax, double ymin, 
 
   TString output_plot_dir = getenv("PLOTTER_WORKING_DIR");
   output_plot_dir = output_plot_dir + "/output/plot/HypFit/True_vs_Chi2/";
-  c -> SaveAs(output_plot_dir + "Pion_KE_True_vs_Chi2_pion.pdf");
+  c -> SaveAs(output_plot_dir + "Pion_KE_True_vs_Chi2_pion_" + syst_flag + ".pdf");
 
-  // == Draw 1D
-  canvas_margin(c);
-  TH1D *hist_1D = hist_pion_before_chi2_cut -> ProjectionY("chi2_1D");
-  double max_y_1D = hist_1D -> GetMaximum();
-  TH1D *template_h_1D = new TH1D("", "", 1, ymin, ymax);
-  gStyle->SetOptTitle(0);
-  gStyle->SetLineWidth(2);
-  template_h_1D -> SetStats(0);
-  template_h_1D -> GetXaxis() -> SetTitle("#chi^{2}_{#pi^{#pm}}");
-  template_h_1D -> GetXaxis() -> SetTitleSize(0.05);
-  template_h_1D -> GetXaxis() -> SetLabelSize(0.035);
-  template_h_1D -> GetYaxis() -> SetTitle("A.U.");
-  template_h_1D -> GetYaxis() -> SetTitleSize(0.05);
-  template_h_1D -> GetYaxis() -> SetLabelSize(0.035);
-  template_h_1D -> GetYaxis() -> SetRangeUser(0., max_y_1D * 1.2);
-  template_h_1D -> Draw();
-
-  hist_1D -> SetLineColor(kBlack);
-  hist_1D -> SetLineWidth(3);
-  hist_1D -> Draw("histsame");
-
-  TLine *line_chi2_6 = new TLine(6., 0., 6., max_y_1D * 1.2);
-  line_chi2_6 -> SetLineColor(kRed);
-  line_chi2_6 -> SetLineStyle(7);
-  line_chi2_6 -> SetLineWidth(3);
-  line_chi2_6 -> Draw("lsame");
-
-  l -> Draw("same");
-
-  latex_ProtoDUNE.DrawLatex(0.16, 0.96, "#font[62]{ProtoDUNE-SP} #font[42]{#it{#scale[0.8]{Preliminary}}}");
-  latex_particle.DrawLatex(0.95, 0.96, "True #pi^{+} (reconstructed as #pi^{+})");
-
-  c -> SaveAs(output_plot_dir + "Pion_Chi2_pion.pdf");
   c -> Close();
   f_input -> Close();
 }
@@ -973,6 +958,7 @@ void Draw_2D_Res(TString filename, TString method, TString histname, TString tru
 
   TString input_file_dir = getenv("PLOTTER_WORKING_DIR");
   TString root_file_path = input_file_dir + "/input/root/HypFit/Syst/" + filename;
+  if(filename.Contains("Data")) root_file_path = input_file_dir + "/input/root/HypFit/Syst/" + filename;
   TFile *f_input = new TFile(root_file_path);
   gDirectory -> Cd(method);
 
@@ -1013,12 +999,13 @@ void Draw_2D_Res(TString filename, TString method, TString histname, TString tru
   TF1 *xqual6 = new TF1("xqual6", "0.", xmin, xmax);
   xqual6 -> SetLineStyle(7);
   xqual6 -> SetLineWidth(3);
-  xqual6 -> SetLineColor(kRed);
+  //xqual6 -> SetLineColor(kRed);
+  xqual6 -> SetLineColorAlpha(kRed, 0.35);
   xqual6 -> Draw("lsame");
 
   TLegend *l = new TLegend(0.60, 0.70, 0.80, 0.93);
   l -> AddEntry(xqual6, "y = 0", "l");
-  l -> Draw("same");
+  //l -> Draw("same");
 
   TLatex latex_ProtoDUNE, latex_particle, latex_method, latex_Nhits;
   latex_ProtoDUNE.SetNDC();
@@ -1039,7 +1026,7 @@ void Draw_2D_Res(TString filename, TString method, TString histname, TString tru
   latex_Nhits.DrawLatex(0.80, 0.3, Nhits_latex);
   TString output_plot_dir = getenv("PLOTTER_WORKING_DIR");
   output_plot_dir = output_plot_dir + "/output/plot/HypFit/Performance/Res/2D/";
-  c -> SaveAs(output_plot_dir + histname + ".pdf");
+  c -> SaveAs(output_plot_dir + histname + "_" + syst_flag + ".pdf");
 
   c -> Close();
   f_input -> Close();
@@ -1049,6 +1036,7 @@ void Draw_2D_Res_all_MC(TString filename, TString method, TString histname, TStr
 
   TString input_file_dir = getenv("PLOTTER_WORKING_DIR");
   TString root_file_path = input_file_dir + "/input/root/HypFit/Syst/" + filename;
+  if(filename.Contains("Data")) root_file_path = input_file_dir + "/input/root/HypFit/Syst/" + filename;
   TFile *f_input = new TFile(root_file_path);
   gDirectory -> Cd(method);
 
@@ -1100,12 +1088,13 @@ void Draw_2D_Res_all_MC(TString filename, TString method, TString histname, TStr
   TF1 *xqual6 = new TF1("xqual6", "0.", xmin, xmax);
   xqual6 -> SetLineStyle(7);
   xqual6 -> SetLineWidth(3);
-  xqual6 -> SetLineColor(kRed);
+  //xqual6 -> SetLineColor(kRed);
+  xqual6 -> SetLineColorAlpha(kRed, 0.35);
   xqual6 -> Draw("lsame");
 
   TLegend *l = new TLegend(0.60, 0.70, 0.80, 0.93);
   l -> AddEntry(xqual6, "y = 0", "l");
-  l -> Draw("same");
+  //l -> Draw("same");
 
   TLatex latex_ProtoDUNE, latex_particle, latex_method, latex_Nhits;
   latex_ProtoDUNE.SetNDC();
@@ -1124,7 +1113,7 @@ void Draw_2D_Res_all_MC(TString filename, TString method, TString histname, TStr
   latex_Nhits.DrawLatex(0.80, 0.3, Nhits_latex);
   TString output_plot_dir = getenv("PLOTTER_WORKING_DIR");
   output_plot_dir = output_plot_dir + "/output/plot/HypFit/Performance/Res/2D/";
-  c -> SaveAs(output_plot_dir + histname + "all.pdf");
+  c -> SaveAs(output_plot_dir + histname + "all_" + syst_flag + ".pdf");
 
   c -> Close();
   f_input -> Close();
@@ -1134,6 +1123,7 @@ void Draw_Fitted_vs_BB(TString filename, TString method, TString particle, TStri
 
   TString input_file_dir = getenv("PLOTTER_WORKING_DIR");
   TString root_file_path = input_file_dir + "/input/root/HypFit/Syst/" + filename;
+  if(filename.Contains("Data")) root_file_path = input_file_dir + "/input/root/HypFit/Syst/" + filename;
   TFile *f_input = new TFile(root_file_path);
   gDirectory -> Cd(method);
 
@@ -1195,7 +1185,7 @@ void Draw_Fitted_vs_BB(TString filename, TString method, TString particle, TStri
   latex_method.DrawLatex(0.18, 0.87, method);
   TString output_plot_dir = getenv("PLOTTER_WORKING_DIR");
   output_plot_dir = output_plot_dir + "/output/plot/HypFit/Fitted_vs_Range/";
-  c -> SaveAs(output_plot_dir + method + "_KE_Fitted_vs_Range_" + particle + "_" + Nhits + ".pdf");
+  c -> SaveAs(output_plot_dir + method + "_KE_Fitted_vs_Range_" + particle + "_" + Nhits + "_" + syst_flag + ".pdf");
 
   c -> Close();
   f_input -> Close();
@@ -1205,6 +1195,7 @@ void Draw_Denom_Distributions(TString filename, TString particle, TString partcl
 
   TString input_file_dir = getenv("PLOTTER_WORKING_DIR");
   TString root_file_path = input_file_dir + "/input/root/HypFit/Syst/" + filename;
+  if(filename.Contains("Data")) root_file_path = input_file_dir + "/input/root/HypFit/Syst/" + filename;
   TFile *f_input = new TFile(root_file_path);
   gDirectory -> Cd("Denom");
 
@@ -1253,7 +1244,7 @@ void Draw_Denom_Distributions(TString filename, TString particle, TString partcl
 
   TString output_plot_dir = getenv("PLOTTER_WORKING_DIR");
   output_plot_dir = output_plot_dir + "/output/plot/HypFit/KE_BB_for_Nhits/";
-  c -> SaveAs(output_plot_dir + "KE_BB_" + Nhits + "_" + particle + ".pdf");
+  c -> SaveAs(output_plot_dir + "KE_BB_" + Nhits + "_" + particle + "_" + syst_flag + ".pdf");
 
   c -> Close();
   f_input -> Close();
@@ -1285,8 +1276,19 @@ void Draw_Performance_Comparison(TString particle){
       cout << "[Draw_Performance_Comparison] res_map[histname].size() : " << res_map[histname].size() << endl;
       if(res_map[histname].size() > 0) cout << "res_map[histname].at(0) : " << res_map[histname].at(0) << endl;
     }
-    Draw_Comparisons(res_vec, KE_vec, res_err_vec, KE_err_vec, legend_vec, 0., 400., 0., 0.3, true_or_BB[i], "#sigma", "Likelihood_Res_Summary_KE_" + true_or_BB[i] + "_" + particle, particle);
-    Draw_Comparisons(bias_vec, KE_vec, bias_err_vec, KE_err_vec, legend_vec, 0., 400., -0.1, 0.3, true_or_BB[i], "#mu", "Likelihood_Bias_Summary_KE_" + true_or_BB[i] + "_" + particle, particle);
+
+    double y_min_mu = -0.05;
+    double y_max_mu = 0.1;
+    double y_min_res = 0.;
+    double y_max_res = 0.15;
+    if(true_or_BB[i] == "BB"){
+      y_min_mu = -0.02;
+      y_max_mu = 0.1;
+      y_min_res = 0.;
+      y_max_res = 0.15;
+    }
+    Draw_Comparisons(res_vec, KE_vec, res_err_vec, KE_err_vec, legend_vec, 0., 400., y_min_res, y_max_res, true_or_BB[i], "#sigma", "Likelihood_Res_Summary_KE_" + true_or_BB[i] + "_" + particle, particle);
+    Draw_Comparisons(bias_vec, KE_vec, bias_err_vec, KE_err_vec, legend_vec, 0., 400., y_min_mu, y_max_mu, true_or_BB[i], "#mu", "Likelihood_Bias_Summary_KE_" + true_or_BB[i] + "_" + particle, particle);
 
     //Draw_Comparisons(res_vec, KE_vec, res_err_vec, KE_err_vec, legend_vec, 0., 400., 0., 0.2, "KE_{" + true_or_BB[i] + "} [MeV]", "#sigma (#frac{KE_{fitted} - KE_{" + true_or_BB[i] + "}}{KE_{" + true_or_BB[i] + "}})", "Likelihood_Res_Summary_KE_" + true_or_BB[i] + "_" + particle, particle);
     //Draw_Comparisons(bias_vec, KE_vec, bias_err_vec, KE_err_vec, legend_vec, 0., 400., -0.1, 0.15, "KE_{" + true_or_BB[i] + "} [MeV]", "#mu (#frac{KE_{fitted} - KE_{" + true_or_BB[i] + "}}{KE_{" + true_or_BB[i] + "}})", "Likelihood_Bias_Summary_KE_" + true_or_BB[i] + "_" + particle, particle);
@@ -1301,6 +1303,7 @@ void Draw_Performance_Comparison_MC_vs_Data(){
   vector<vector<double>> MC_res_vec, MC_KE_vec, MC_res_err_vec, MC_KE_err_vec, MC_bias_vec, MC_bias_err_vec;
   vector<vector<double>> data_res_vec, data_KE_vec, data_res_err_vec, data_KE_err_vec, data_bias_vec, data_bias_err_vec;
   vector<TString> legend_vec;
+  vector<TString> Nhit_str_vec;
   for(int j = 0; j < N_Nhits_arr - 1; j++){
     TString MC_histname = "Likelihood_KE_BB_vs_KE_fit_Res_" + Nhits_arr[j] + "_MC";
     TString data_histname = "Likelihood_KE_BB_vs_KE_fit_Res_" + Nhits_arr[j] + "_Data_DoubleGaus";
@@ -1319,12 +1322,13 @@ void Draw_Performance_Comparison_MC_vs_Data(){
     data_bias_err_vec.push_back(bias_err_map[data_histname]);
     
     legend_vec.push_back(Nhits_latex_arr[j]);
+    Nhit_str_vec.push_back(Nhits_arr[j]);
     cout << "[Draw_Performance_Comparison] res_map[MC_histname].size() : " << res_map[MC_histname].size() << endl;
     if(res_map[MC_histname].size() > 0) cout << "res_map[MC_histname].at(0) : " << res_map[MC_histname].at(0) << endl;
   }
-  
-  Draw_Comparisons_MC_vs_Data(MC_res_vec, MC_KE_vec, MC_res_err_vec, MC_KE_err_vec, data_res_vec, data_KE_vec, data_res_err_vec, data_KE_err_vec, legend_vec, 0., 400., 0., 0.3, "BB", "#sigma", "Likelihood_Res_Summary_KE_BB_MC_vs_Data");
-  Draw_Comparisons_MC_vs_Data(MC_bias_vec, MC_KE_vec, MC_bias_err_vec, MC_KE_err_vec, data_bias_vec, data_KE_vec, data_bias_err_vec, data_KE_err_vec, legend_vec, 0., 400., -0.1, 0.3, "BB", "#mu", "Likelihood_Bias_Summary_KE_BB_MC_vs_Data");
+
+  Draw_Comparisons_MC_vs_Data(MC_res_vec, MC_KE_vec, MC_res_err_vec, MC_KE_err_vec, data_res_vec, data_KE_vec, data_res_err_vec, data_KE_err_vec, legend_vec, Nhit_str_vec, 0., 400., 0., 0.15, "BB", "#sigma", "Res", "Likelihood_Res_Summary_KE_BB_MC_vs_Data");
+  Draw_Comparisons_MC_vs_Data(MC_bias_vec, MC_KE_vec, MC_bias_err_vec, MC_KE_err_vec, data_bias_vec, data_KE_vec, data_bias_err_vec, data_KE_err_vec, legend_vec, Nhit_str_vec, 0., 400., -0.05, 0.2, "BB", "#mu", "Bias", "Likelihood_Bias_Summary_KE_BB_MC_vs_Data");
 }
 
 
@@ -1333,6 +1337,7 @@ void Run_for_filename(TString filename, TString suffix){
   TString Nhits_arr[] = {"Nhits0to30", "Nhits30to60", "Nhits60to90", "Nhits90to120", "Nhits120to150", "Nhits150to180", "Nhits180to210"};
   TString Nhits_latex_arr[] = {"N_{hits} : 15 - 30", "N_{hits} : 30 - 60", "N_{hits} : 60 - 90", "N_{hits} : 90 - 120", "N_{hits} : 120 - 150", "N_{hits} : 150 - 180", "N_{hits} : 180 - 210"};
   TString particle_arr[] = {"pion", "proton", "muon"};
+  //TString particle_latex_arr[] = {"#pi^{+}", "p^{+}", "#mu^{#pm}"};
   TString particle_latex_arr[] = {"#font[42]{#pi^{+}}", "#font[42]{p}", "#font[42]{#mu^{#pm}}"};
   double rebin_KE_arr_true[] = {5., 2., 2., 2., 1., 2., 2.};
   double rebin_KE_arr[] = {5., 2., 2., 2., 1., 2., 2.};
@@ -1411,22 +1416,25 @@ void Run_for_filename(TString filename, TString suffix){
   }
 }
 
-void Draw_paper_plots(){
+void Draw_syst_plots(TString this_syst_flag){
 
+  syst_flag = this_syst_flag;
   setTDRStyle();
   // == Variable plots
-  Draw_True_vs_Chi2("PionKEScale_1.0_MC_1GeV_HypFit.root", 0., 800., 0., 60.);
+  //Draw_True_vs_Chi2("PionKEScale_1.0_MC_1GeV_HypFit.root", 0., 800., 0., 100.);
   //Draw_True_vs_BB("PionKEScale_1.0_MC_1GeV_HypFit.root", 0., 800., 0., 800.);
   
   // =====================
   // == Performance plots
   // =====================
   Run_for_filename("PionKEScale_1.0_MC_1GeV_HypFit.root", "");
-  //Run_for_filename("PionKEScale_1.0_MC_1GeV_dEdx_scaled.root", "");
+  //Run_for_filename("PionKEScale_1.0_MC_1GeV_slope_fraction_100.root", "");
+  //Run_for_filename("PionKEScale_1.0_MC_1GeV_scale_0p975.root", "");
+  //Run_for_filename("PionKEScale_1.0_MC_1GeV_scale_0p975_in_range.root", "");
+  //Run_for_filename("PionKEScale_1.0_MC_1GeV_chi2_12.root", "");
   
-  //Run_for_filename("PionKEScale_1.0_Data_1GeV_central.root", "");
   //Run_for_filename("PionKEScale_1.0_Data_1GeV_HypFit.root", "");
-  //Run_for_filename("PionKEScale_1.0_Data_1GeV_test_Abbey.root", "");
+  Run_for_filename("PionKEScale_1.0_Data_1GeV_" + syst_flag + ".root", "");
   //Run_for_filename("PionKEScale_1.0_Data_1GeV_HypFit_PionBeam.root", "");
   //Run_for_filename("PionKEScale_1.0_Data_1GeV_test.root", "");
 }
