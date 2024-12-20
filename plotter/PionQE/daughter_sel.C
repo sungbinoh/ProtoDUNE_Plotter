@@ -112,23 +112,23 @@ void daughter_sel(){
   int N_daughter_sel = 2;
   TString daughter_sel_strs[] = {"AllRecoDaughters", "LoosePions"};
   
-  int N_histnames = 4;
-  TString hist_names[] = {"daughters_chi2_pion", "daughters_chi2_proton", "daughters_trklen", "daughters_trkscore"
+  int N_histnames = 5;
+  TString hist_names[] = {"daughters_chi2_pion", "daughters_chi2_proton", "daughters_trklen", "daughters_trkscore", "daughters_michelscore"
   };
   
-  int rebins[] = {1, 5, 2, 10 
+  int rebins[] = {1, 5, 2, 10, 10,
   };
 
-  double x_mins[] = {0., 0., 0., 0., 
+  double x_mins[] = {0., 0., 0., 0., 0.,
   };
 
-  double x_maxs[] = {100., 500., 200., 1.,  
+  double x_maxs[] = {100., 500., 200., 1., 1., 
   };
   
-  TString X_titles[] = {"#chi^{2}_{#pi^{#pm}}", "#chi^{2}_{p}", "L_{Track} (cm)", "Track Score",
+  TString X_titles[] = {"#chi^{2}_{#pi^{#pm}}", "#chi^{2}_{p}", "L_{Track} (cm)", "Track Score", "Michel Score",
   };
   
-  bool logys[] = {false, false, false, false,
+  bool logys[] = {false, false, false, false, false,
   };
   
   for(int i = 0; i < N_daughter_sel; i++){

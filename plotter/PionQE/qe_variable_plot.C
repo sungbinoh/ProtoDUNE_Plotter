@@ -30,14 +30,17 @@ void Draw_stacked_plots(TString beam_selec_str, TString hist_name, int rebin, do
   TFile *f_MC = new TFile(root_file_path + MC_filename);
   gDirectory -> Cd(beam_selec_str);
   TH1D * mc_sum;
+  bool mc_sum_defined =	false;
   for(int i = 1; i < N_pi2_type; i++){
     TString this_MC_hist_key = Form(hist_name + "_" + beam_selec_str + "_%d", i);
     TString this_hist_name = Form(beam_selec_str + "_" + hist_name + "_%d", i);
 
-    if(i == 1) mc_sum = (TH1D*)gDirectory -> Get(this_hist_name) -> Clone();
     if((TH1D*)gDirectory -> Get(this_hist_name)){
-      if(i == 1) mc_sum =(TH1D*)gDirectory -> Get(this_hist_name) -> Clone();
-      else if (i != 0){
+      if(!mc_sum_defined){
+        mc_sum =(TH1D*)gDirectory -> Get(this_hist_name) -> Clone();
+	mc_sum_defined = true;
+      } 
+      else if (mc_sum_defined){
         mc_sum -> Add((TH1D*)gDirectory -> Get(this_hist_name));
       }
       maphist[this_MC_hist_key] = (TH1D*)gDirectory -> Get(this_hist_name) -> Clone();
@@ -48,8 +51,7 @@ void Draw_stacked_plots(TString beam_selec_str, TString hist_name, int rebin, do
   }
   mc_sum -> Rebin(rebin);
   mc_sum = Add_Under_and_Overflow(mc_sum);
-  int N_bins = mc_sum -> GetNbinsX();
-  
+  int N_bins = mc_sum -> GetNbinsX();  
 
   // == Get Scale and apply 
   double data_integ = maphist[this_data_hist_key] -> Integral();
@@ -288,21 +290,20 @@ void Draw_stacked_plots(TString beam_selec_str, TString hist_name, int rebin, do
   c -> Close();
 }
 
-void beam_variable_plot(){
+void qe_variable_plot(){
 
   setTDRStyle();
 
-  int N_beam_selec = 5;
+  int N_beam_selec = 1;
   /*
   TString beam_selec_strs[] = {"Beam_CaloSize", "Beam_APA3", "Beam_BeamStartZ", "Beam_deltaX", "Beam_deltaY",
                                "Beam_TPCtheta", "Beam_TPCphi", "Beam_AltLen", "Beam_N_cut_daughters", "Beam_SB_N_cut_daughters",
 			       "Beam_TrkLenRatio",
   };
   */
-  TString beam_selec_strs[] = {"Beam_CaloSize", "Beam_APA3", "Beam_MichelScore", "Beam_KE_end", "Beam_QE"};//, "Beam_BeamStartZ", "Beam_deltaX",
-  //    "Beam_deltaY", "Beam_chi2p", "Beam_1pi1p"};
+  TString beam_selec_strs[] = {"QE_QE"};
   
-  int N_hist_names = 18;
+  int N_hist_names = 9;
   /*
   TString hist_names[] = {"Beam_P_beam_inst", "Beam_costh", "Beam_endZ", "Beam_startX", "Beam_startY",
 			  "Beam_startZ", "Beam_startZ_over_sigma", "Beam_delta_X_spec_TPC", "Beam_delta_Y_spec_TPC", "Beam_cos_delta_spec_TPC",
@@ -311,29 +312,15 @@ void beam_variable_plot(){
 			  "Beam_trk_len_ratio", "Beam_KE_ff", "Beam_KE_end",
   };
   */
-  TString hist_names[] = {"Beam_P_beam_inst", "Beam_costh", "Beam_endZ", "Beam_startX", "Beam_startY",
-                          "Beam_startZ", "Beam_delta_X_spec_TPC", "Beam_delta_Y_spec_TPC", "Beam_cos_delta_spec_TPC", "Beam_chi2_proton",
-			  "Beam_N_nocut_daughters", "Beam_N_cut_daughters", "Beam_TPC_theta", "Beam_TPC_phi", "Beam_alt_len",
-                          "Beam_trk_len_ratio", "Beam_KE_ff", "Beam_KE_end",
+  TString hist_names[] = {"QEreco_Q2", "QEreco_KEPi0", "QEreco_KEPi1", "QEreco_AngPi", "QEreco_nu", "QEreco_nu1", "QEreco_nu2", "QEreco_nu3", "QEreco_dEQE"
   };
+
   
-  int rebins[] = {10, 2, 5, 5, 5,
-		  5, 5, 5, 2,
-		  20, 1, 1,
-		  5, 5, 5,
-		  5, 10, 25,
+  int rebins[] = {1, 1, 1, 1, 1, 1, 1, 1, 1,
   };
-  double x_mins[] = {350., 0.8, -100., -50., 390.,
- 		     -50., -100., -100., 0.8,
-		     0., -0.5, -0.5,
-		     -0.1, -4., -1.,
-		     0., 250., 0., 
+  double x_mins[] = {0., 0., 0., 0., 0., 0., 0., 0., -500.,
   };
-  double x_maxs[] = {650., 1.1, 300., 0., 460.,
-		     50., 100., 100., 1.1,
-		     500., 9.5, 9.5,
-		     4., 4., 200.,
-		     2., 550., 500.,
+  double x_maxs[] = {1., 500., 500., 180., 500., 500., 500., 500., 500,
   };
   /*
   TString X_titles[] = {"P_{spec.} (MeV/c)", "cos #theta_{beam}", "Z_{end}^{beam} (cm)", "X_{start}^{beam} (cm)", "Y_{start}^{beam} (cm)",
@@ -343,17 +330,10 @@ void beam_variable_plot(){
 			"L_{Beam track} / L_{Exp.}", "E_{K}^{FF}", "E_{K}^{End}",
   };
   */
-  TString X_titles[] = {"P_{spec.} (MeV/c)", "cos #theta_{beam}", "Z_{end}^{beam} (cm)", "X_{start}^{beam} (cm)", "Y_{start}^{beam} (cm)",
-                        "Z_{start}^{beam} (cm)", "#DeltaX(spec., ff) (cm)", "#DeltaY(spec., ff) (cm)", "#Delta#theta (spec., ff) (rad.)",
-                        "#chi^{2}_{p}", "N_{Daughter}", "N_{Daughter}",
-                        "#theta_{Beam}^{TPC} (rad.)", "#phi_{Beam}^{TPC} (rad.)", "L_{Beam track} (cm)",
-                        "L_{Beam track} / L_{Exp.}", "E_{K}^{FF}", "E_{K}^{End}",
+  TString X_titles[] = {"Q^{2} (GeV^{2})", "Incident pion KE (MeV)", "Outgoing pion KE (MeV)", "Pion angle (deg)", "nu (MeV)", "nu (MeV) (0.05<Q^{2}<0.15 GeV^{2})", "nu (MeV) (0.15<Q^{2}<0.25 GeV^{2})", "nu (MeV) (0.25<Q^{2}<0.35 GeV^{2})", "E_{QE} - E_{#pi} (MeV)",
   };
   
-  bool logys[] = {false, false, false, false, false,
-		  false, false,	false, false, false,
-		  false, false, false, false, false,
-		  false, false, false,
+  bool logys[] = {false, false, false, false, false, false,false,false,false
   };
   for(int i = 0; i < N_beam_selec; i++){
     for(int j = 0; j < N_hist_names; j++){
